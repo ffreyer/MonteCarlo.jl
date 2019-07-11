@@ -20,6 +20,7 @@ include("lattices/square.jl")
 include("lattices/chain.jl")
 include("lattices/cubic.jl")
 include("lattices/ALPS.jl")
+include("lattices/Honeycomb.jl")
 
 include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
