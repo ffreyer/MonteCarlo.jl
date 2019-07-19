@@ -24,7 +24,7 @@ include("lattices/Honeycomb.jl")
 
 include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
-include("models/KaneMele/KaneMele.jl")
+include("models/KaneMeleHubbard/KaneMeleHubbard.jl")
 
 include("../test/testfunctions.jl")
 
@@ -32,6 +32,7 @@ export reset!
 export run!
 export IsingModel
 export HubbardModelAttractive
+export KaneMeleHubbardModel
 export MC
 export DQMC
 export greens
