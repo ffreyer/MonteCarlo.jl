@@ -24,6 +24,7 @@ include("lattices/Honeycomb.jl")
 
 include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
+include("models/KaneMele/KaneMele.jl")
 
 include("../test/testfunctions.jl")
 
