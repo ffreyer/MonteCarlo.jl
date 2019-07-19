@@ -56,10 +56,11 @@ Draw random HS field configuration.
 """
 @inline function rand(mc::DQMC, m::KaneMeleModel)
     # rand(HubbardDistribution, m.l.sites, mc.p.slices)
-    throw(ErrorException(
+    @warn(
         "There is no Hubbard Stratonovich field for the Kane-Mele model. " *
         "(It can be solved without running a DQMC simulations.)"
-    ))
+    )
+    Int8[]
 end
 
 """
@@ -69,10 +70,11 @@ Returns the type of a (Hubbard-Stratonovich field) configuration of the Kane
 Mele model.
 """
 @inline function conftype(::Type{DQMC}, m::KaneMeleModel)
-    throw(ErrorException(
+    @warn(
         "There is no configuration type for the Kane-Mele model. " *
         "(It can be solved without running a DQMC simulations.)"
-    ))
+    )
+    Array{Int8, 1}
 end
 
 """
@@ -137,7 +139,7 @@ function hopping_matrix(mc::DQMC, m::KaneMeleModel)
     neighs = m.l.neighs # row = up, right, down, left; col = siteidx
     NNNs = m.l.NNNs # row = up, right, down, left; col = siteidx
 
-    T = diagm(0 => fill(-m.mu, N))
+    T = diagm(0 => fill(-m.mu, 2N))
 
     # Nearest neighbor hoppings
     @inbounds @views begin
@@ -145,6 +147,7 @@ function hopping_matrix(mc::DQMC, m::KaneMeleModel)
             for nb in 1:size(neighs,1)
                 trg = neighs[nb,src]
                 T[trg,src] += -m.t
+                T[trg+N,src+N] += -m.t
             end
         end
     end
@@ -155,8 +158,8 @@ function hopping_matrix(mc::DQMC, m::KaneMeleModel)
     # and we assume the result of the cross product to be normalized,
     # i.e. we pull lattice related prefactors into λ
     @inbounds @views begin
-        for i in 1:2l.L, j in 1:2l.L
-            src = l.lattice[i, j]
+        for i in 1:2m.l.L, j in 1:2m.l.L
+            src = m.l.lattice[i, j]
             for nb in 1:size(NNNs,1)
                 # cross product gives ±e_z, alternating clockwise and w/ sublattice
                 # total sign is:
@@ -165,6 +168,7 @@ function hopping_matrix(mc::DQMC, m::KaneMeleModel)
                 hcsign = nb > 3 ? -1.0 : 1.0
                 trg = neighs[nb,src]
                 T[trg,src] += hcsign * cpsign * m.lambda
+                T[trg+N,src+N] -= hcsign * cpsign * m.lambda
             end
         end
     end
