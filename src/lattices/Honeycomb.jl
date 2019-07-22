@@ -32,8 +32,8 @@ Create a Honeycomb lattice with linear dimension `L`. Note that this generates
 function HoneycombLattice(L::Int)
     l = HoneycombLattice()
     l.L = L
-    l.sites = (2l.L)^2
-    l.lattice = convert(Array, reshape(1:(2l.L)^2, (2l.L, 2l.L)))
+    l.sites = l.L^2
+    l.lattice = convert(Array, reshape(1:l.L^2, (l.L, l.L)))
     build_neighbortable!(l)
     build_NNneighbortable!(l)
 
@@ -43,7 +43,7 @@ function HoneycombLattice(L::Int)
     l.bonds = zeros(l.n_bonds, 3)
     bondid = 1
     # for src in l.lattice
-    for i in 1:2l.L, j in 1:2l.L
+    for i in 1:l.L, j in 1:l.L
         src = l.lattice[i, j]
         nup = l.neighs[1, src]
         l.bonds[bondid,:] .= [src,nup,0]
@@ -64,11 +64,11 @@ function build_neighbortable!(l::HoneycombLattice)
     down = circshift(l.lattice,(1,0))
     left = circshift(l.lattice,(0,1))
     alternating_left_right = [
-        iseven(i+j) ? left[j, i] : right[j, i] for i in 1:2l.L for j in 1:2l.L
+        iseven(i+j) ? left[j, i] : right[j, i] for i in 1:l.L for j in 1:l.L
     ]
     l.neighs = vcat(up[:]', down[:]', alternating_left_right[:]')
 
-    l.neighs_cartesian = Array{Int, 3}(undef, 3, 2l.L, 2l.L)
+    l.neighs_cartesian = Array{Int, 3}(undef, 3, l.L, l.L)
     l.neighs_cartesian[1,:,:] = up
     l.neighs_cartesian[2,:,:] = down
     l.neighs_cartesian[3,:,:] = alternating_left_right
@@ -91,7 +91,7 @@ function build_NNneighbortable!(l::HoneycombLattice)
         upleft[:]'
     )
 
-    l.NNNs_cartesian = Array{Int, 3}(undef, 6, 2l.L, 2l.L)
+    l.NNNs_cartesian = Array{Int, 3}(undef, 6, l.L, l.L)
     l.NNNs_cartesian[1,:,:] = upup
     l.NNNs_cartesian[2,:,:] = upright
     l.NNNs_cartesian[3,:,:] = downright

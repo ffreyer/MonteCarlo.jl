@@ -177,7 +177,7 @@ function hopping_matrix(mc::DQMC, m::KaneMeleHubbardModel)
     # i.e. we pull lattice related prefactors into λ
     # @inbounds @views
     begin
-        for i in 1:2m.l.L, j in 1:2m.l.L
+        for i in 1:m.l.L, j in 1:m.l.L
             src = m.l.lattice[i, j]
             for nb in 1:size(NNNs,1)
                 # cross product gives ±e_z, alternating clockwise and w/ sublattice
