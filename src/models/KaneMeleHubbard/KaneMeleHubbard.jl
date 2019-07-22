@@ -56,7 +56,7 @@ import Base.rand
 Draw random HS field configuration.
 """
 @inline function rand(mc::DQMC, m::KaneMeleHubbardModel)
-    rand(HubbardDistribution, m.l.sites, mc.p.slices)
+    rand(HubbardDistribution, m.flv * m.l.sites, mc.p.slices)
 end
 
 """
@@ -91,11 +91,12 @@ Propose a local HS field flip at site `i` and imaginary time slice `slice` of cu
     # see for example dos Santos (2002)
     greens = mc.s.greens
     dtau = mc.p.delta_tau
-    alpha = acosh(exp(m.U * dtau/2))
+    alpha = acosh(exp(0.5 * m.U * dtau))
 
     delta_E_boson = -2. * alpha * conf[i, slice]
     gamma = exp(delta_E_boson) - 1
-    detratio = (1 + gamma * (1 - greens[i,i]))^2 # squared because of two spin sectors.
+    # squared because of two spin sectors.
+    detratio = (1 + gamma * (1 - greens[i,i]))^2
 
     return detratio, delta_E_boson, gamma
 end
@@ -165,7 +166,6 @@ function hopping_matrix(mc::DQMC, m::KaneMeleHubbardModel)
             for nb in 1:size(neighs,1)
                 trg = neighs[nb,src]
                 T[trg,src] += -m.t
-                # T[trg+N,src+N] += -m.t
             end
         end
     end
@@ -187,7 +187,6 @@ function hopping_matrix(mc::DQMC, m::KaneMeleHubbardModel)
                 hcsign = nb > 3 ? -1.0 : 1.0
                 trg = NNNs[nb,src]
                 T[trg,src] += hcsign * cpsign * m.lambda
-                # T[trg+N,src+N] -= hcsign * cpsign * m.lambda
             end
         end
     end
