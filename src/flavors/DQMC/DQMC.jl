@@ -61,14 +61,21 @@ Create a determinant quantum Monte Carlo simulation for model `m` with keyword p
 """
 function DQMC(m::M; seed::Int=-1, checkerboard::Bool=false, kwargs...) where M<:Model
     geltype = greenseltype(DQMC, m)
-    mc = DQMC{M, checkerboard ? CheckerboardTrue : CheckerboardFalse, conftype(DQMC, m), DQMCStack{geltype,Float64}}()
+    heltype = hoppingeltype(DQMC, m)
+
+    mc = DQMC{
+        M,
+        checkerboard ? CheckerboardTrue : CheckerboardFalse,
+        conftype(DQMC, m),
+        DQMCStack{geltype, heltype}
+    }()
     mc.model = m
 
     # default params
     # paramskwargs = filter(kw->kw[1] in fieldnames(DQMCParameters), kwargs)
     mc.p = DQMCParameters(; kwargs...)
 
-    mc.s = DQMCStack{geltype,Float64}()
+    mc.s = DQMCStack{geltype, heltype}()
 
     init!(mc, seed=seed)
     return mc
