@@ -73,7 +73,8 @@ Mele model.
 
 Returns the element type of the Green's function.
 """
-@inline greenseltype(::Type{DQMC}, m::KaneMeleHubbardModel) = Float64
+@inline greenseltype(::Type{DQMC}, m::KaneMeleHubbardModel) = ComplexF64
+@inline hoppingeltype(::Type{DQMC}, m::KaneMeleHubbardModel) = ComplexF64
 
 """
     propose_local(dqmc, model::KaneMeleHubbardModel, i::Int, slice, conf, E_boson::Float64) -> detratio, delta_E_boson, delta
@@ -157,7 +158,7 @@ function hopping_matrix(mc::DQMC, m::KaneMeleHubbardModel)
     neighs = m.l.neighs # row = up, right, down, left; col = siteidx
     NNNs = m.l.NNNs # row = up, right, down, left; col = siteidx
 
-    T = diagm(0 => fill(-m.mu, N))
+    T = diagm(0 => fill(-m.mu +0im, N))
 
     # Nearest neighbor hoppings
     # @inbounds @views
@@ -186,7 +187,7 @@ function hopping_matrix(mc::DQMC, m::KaneMeleHubbardModel)
                 # sign change due to i (h.c.):
                 hcsign = nb > 3 ? -1.0 : 1.0
                 trg = NNNs[nb,src]
-                T[trg,src] += hcsign * cpsign * m.lambda
+                T[trg,src] += 1im * hcsign * cpsign * m.lambda
             end
         end
     end
