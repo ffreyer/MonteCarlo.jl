@@ -149,6 +149,7 @@ end
 Green's function is real for the attractive Hubbard model.
 """
 @inline greenseltype(::Type{DQMC}, m::HubbardModelAttractive) = Float64
+@inline hoppingeltype(::Type{DQMC}, m::HubbardModelAttractive) = Float64
 
 """
 Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch field.
