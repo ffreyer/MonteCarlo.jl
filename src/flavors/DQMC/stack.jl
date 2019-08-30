@@ -85,7 +85,7 @@ heltype(mc::DQMC{M, CB, CT, S}) where {M, CB, CT, S} = heltype(S)
 function initialize_stack(mc::DQMC)
   GreensEltype = geltype(mc)
   HoppingEltype = heltype(mc)
-  N = length(mc.model.l)
+  N = nsites(mc.model)
   flv = mc.model.flv
 
   mc.s.eye_flv = Matrix{Float64}(I, flv,flv)
@@ -143,7 +143,7 @@ function init_hopping_matrices(mc::DQMC{M,CB}, m::Model) where {M, CB<:Checkerbo
   nothing
 end
 function init_hopping_matrix_exp(mc::DQMC, m::Model)
-  N = length(m.l)
+  N = nsites(m)
   flv = m.flv
   dtau = mc.p.delta_tau
 
@@ -162,7 +162,7 @@ function init_checkerboard_matrices(mc::DQMC, m::Model)
   l = m.l
   flv = m.flv
   H = heltype(mc)
-  N = length(l)
+  N = nsites(m)
   dtau = mc.p.delta_tau
   mu = m.mu
 
@@ -336,6 +336,10 @@ function propagate(mc::DQMC)
           greensdiff = maximum(abs.(mc.s.greens_temp - mc.s.greens)) # OPT: could probably be optimized through explicit loop
           if greensdiff > 1e-7
             @printf("->%d \t+1 Propagation instability\t %.1e\n", mc.s.current_slice, greensdiff)
+            # display(mc.s.greens_temp)
+            # display(mc.s.greens)
+            # display(mc.s.greens .- mc.s.greens_temp)
+
           end
         end
 
@@ -385,6 +389,9 @@ function propagate(mc::DQMC)
           greensdiff = maximum(abs.(mc.s.greens_temp - mc.s.greens)) # OPT: could probably be optimized through explicit loop
           if greensdiff > 1e-7
             @printf("->%d \t-1 Propagation instability\t %.1e\n", mc.s.current_slice, greensdiff)
+            # display(mc.s.greens_temp)
+            # display(mc.s.greens)
+            # display(mc.s.greens .- mc.s.greens_temp)
           end
         end
 
