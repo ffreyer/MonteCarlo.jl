@@ -91,6 +91,193 @@ function HamiltonMatrix(model::HubbardModelAttractive)
 end
 
 
+function HamiltonMatrix(model::MonteCarlo.ZCModel)
+    lattice = model.l
+    t1 = model.t1
+    t2 = model.t2
+    tperp = model.tperp
+    U = model.U
+    mu = model.mu
+
+    UP = 1
+    DOWN = 2
+
+    H = zeros(Float64, 4^lattice.sites, 4^lattice.sites)
+
+    for i in 1:4^lattice.sites
+        lstate = state_from_integer(i-1, lattice.sites)
+        for j in 1:4^lattice.sites
+            rstate = state_from_integer(j-1, lattice.sites)
+
+            E = 0
+            # hopping (hermitian conjugate implied/included by lattice generation)
+            for source in 1:lattice.sites
+                # X
+                target = lattice.neighs[1, source]
+                _sign1, state = annihilate(rstate, source, UP)
+                _sign2, state = create(state, target, DOWN)
+                if state != 0 && lstate == state
+                    E += _sign1 * _sign2 * t1
+                end
+                # h.c
+                _sign1, state = create(rstate, source, UP)
+                _sign2, state = annihilate(state, target, DOWN)
+                if state != 0 && lstate == state
+                    E += _sign1 * _sign2 * t1
+                end
+                # _sign1, state = annihilate(rstate, target, UP)
+                # _sign2, state = create(state, source, DOWN)
+                # if state != 0 && lstate == state
+                #     E += -1 * _sign1 * _sign2 * t1
+                # end
+
+                _sign1, state = annihilate(rstate, source, DOWN)
+                _sign2, state = create(state, target, UP)
+                if state != 0 && lstate == state
+                    E += _sign1 * _sign2 * t1
+                end
+                # h.c
+                _sign1, state = create(rstate, source, DOWN)
+                _sign2, state = annihilate(state, target, UP)
+                if state != 0 && lstate == state
+                    E += _sign1 * _sign2 * t1
+                end
+                # _sign1, state = annihilate(rstate, target, DOWN)
+                # _sign2, state = create(state, source, UP)
+                # if state != 0 && lstate == state
+                #     E += -1 * _sign1 * _sign2 * t1
+                # end
+
+
+                # Y
+                target = lattice.neighs[2, source]
+                _sign1, state = annihilate(rstate, source, UP)
+                _sign2, state = create(state, target, DOWN)
+                if state != 0 && lstate == state
+                    E += -1im * _sign1 * _sign2 * t1
+                end
+                # h.c
+                _sign1, state = create(rstate, source, UP)
+                _sign2, state = annihilate(state, target, DOWN)
+                if state != 0 && lstate == state
+                    E += -1im * _sign1 * _sign2 * t1 # NOTE WHAT SIGN
+                end
+                # _sign1, state = annihilate(rstate, target, UP)
+                # _sign2, state = create(state, source, DOWN)
+                # if state != 0 && lstate == state
+                #     E += 1im * _sign1 * _sign2 * t1
+                # end
+
+                _sign1, state = annihilate(rstate, source, DOWN)
+                _sign2, state = create(state, target, UP)
+                if state != 0 && lstate == state
+                    E += 1im * _sign1 * _sign2 * t1
+                end
+                # h.c
+                _sign1, state = create(rstate, source, DOWN)
+                _sign2, state = annihilate(state, target, UP)
+                if state != 0 && lstate == state
+                    E += 1im * _sign1 * _sign2 * t1 # NOTE WHAT SIGN
+                end
+                # _sign1, state = annihilate(rstate, target, DOWN)
+                # _sign2, state = create(state, source, UP)
+                # if state != 0 && lstate == state
+                #     E += -1im * _sign1 * _sign2 * t1
+                # end
+
+
+                # Z
+                target = lattice.neighs[3, source]
+                _sign1, state = annihilate(rstate, source, UP)
+                _sign2, state = create(state, target, UP)
+                if state != 0 && lstate == state
+                    E += _sign1 * _sign2 * t1
+                end
+                # h.c
+                _sign1, state = create(rstate, source, UP)
+                _sign2, state = annihilate(state, target, UP)
+                if state != 0 && lstate == state
+                    E += _sign1 * _sign2 * t1
+                end
+                # _sign1, state = annihilate(rstate, target, UP)
+                # _sign2, state = create(state, source, UP)
+                # if state != 0 && lstate == state
+                #     E += -1 *  _sign1 * _sign2 * t1
+                # end
+
+                _sign1, state = annihilate(rstate, source, DOWN)
+                _sign2, state = create(state, target, DOWN)
+                if state != 0 && lstate == state
+                    E += -1 * _sign1 * _sign2 * t1
+                end
+                # h.c
+                _sign1, state = create(rstate, source, DOWN)
+                _sign2, state = annihilate(state, target, DOWN)
+                if state != 0 && lstate == state
+                    E += -1 * _sign1 * _sign2 * t1
+                end
+                # _sign1, state = annihilate(rstate, target, DOWN)
+                # _sign2, state = create(state, source, DOWN)
+                # if state != 0 && lstate == state
+                #     E += _sign1 * _sign2 * t1
+                # end
+
+                for target in lattice.ext_neighs[1:3, source]
+                    for substate in [UP, DOWN]
+                        _sign1, state = annihilate(rstate, source, substate)
+                        _sign2, state = create(state, target, substate)
+                        if state != 0 && lstate == state
+                            E += _sign1 * _sign2 * t2
+                        end
+                        # h.c
+                        _sign1, state = create(rstate, source, substate)
+                        _sign2, state = annihilate(state, target, substate)
+                        if state != 0 && lstate == state
+                            E += _sign1 * _sign2 * t2
+                        end
+                        # _sign1, state = annihilate(rstate, target, substate)
+                        # _sign2, state = create(state, source, substate)
+                        # if state != 0 && lstate == state
+                        #     E += -1 * _sign1 * _sign2 * t2
+                        # end
+                    end
+                end
+
+                _sign1, state = annihilate(rstate, source, DOWN)
+                _sign2, state = create(state, source, UP)
+                if state != 0 && lstate == state
+                    E += _sign1 * _sign2 * tperp
+                end
+                # h.c
+                _sign1, state = create(rstate, source, DOWN)
+                _sign2, state = annihilate(state, source, UP)
+                if state != 0 && lstate == state
+                    E += _sign1 * _sign2 * tperp
+                end
+                # _sign1, state = annihilate(rstate, source, UP)
+                # _sign2, state = create(state, source, DOWN)
+                # if state != 0 && lstate == state
+                #     E += -1 * _sign1 * _sign2 * tperp
+                # end
+            end
+
+            # # U, μ terms
+            for p in 1:4
+                up_occ = rstate[1, p]
+                down_occ = rstate[2, p]
+                if lstate == rstate
+                    E += U * (up_occ - 0.5) * (down_occ - 0.5)
+                    E -= mu * (up_occ + down_occ)
+                end
+            end
+
+            H[i, j] = E
+        end
+    end
+    H
+end
+
+
 # Greens function
 
 

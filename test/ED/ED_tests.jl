@@ -94,3 +94,30 @@ end
         # @test isapprox(G_DQMC[i, j], G_ED[i, j])
     end
 end
+
+
+@testset "Zhong Chao Model (ED)" begin
+    model = MonteCarlo.ZCModel(
+        L = 3,
+        U = 1.0,
+        mu = 0.0,
+        t1 = 1.0,
+        t2 = 1.0,
+        tperp = 1.0
+    )
+
+    @info "Running DQMC β=1.0, 100k + 100k sweeps, ≈1min"
+    dqmc = DQMC(model, beta=1.0)
+    run!(dqmc, thermalization = 10, sweeps = 10, verbose=false)
+    G_DQMC = mean(dqmc.obs["greens"])
+
+    @info "Running ED"
+    H = HamiltonMatrix(model)
+    G_ED = calculate_Greens_matrix(H, model.l, beta=1.0)
+
+    # G_DQMC is smaller because it doesn't differentiate between spin up/down
+    for i in 1:size(G_DQMC, 1), j in 1:size(G_DQMC, 2)
+        @test isapprox(G_DQMC[i, j], G_ED[i, j], atol=0.025, rtol=0.1)
+        # @test isapprox(G_DQMC[i, j], G_ED[i, j])
+    end
+end
