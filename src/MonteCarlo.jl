@@ -16,12 +16,14 @@ include("lattices/chain.jl")
 include("lattices/cubic.jl")
 include("lattices/honeycomb.jl")
 include("lattices/ALPS.jl")
+include("lattices/triangular.jl")
 
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/DQMC.jl")
 
 include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
+include("models/ZCTriangular/ZCmodel.jl")
 
 include("../test/testfunctions.jl")
 
