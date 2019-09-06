@@ -33,7 +33,7 @@ import Base.show
 
 
 # implement `Model` interface
-@inline nsites(m::ZCModel) = length(m.l)
+@inline nsites(m::ZCModel) = 2length(m.l)
 
 
 # implement `DQMC` interface: mandatory
@@ -41,6 +41,7 @@ import Base.show
 
 
 function hopping_matrix(mc::DQMC, m::ZCModel)
+    # 2N for spin flip
     N = length(m.l)
     l = m.l
     T = zeros(ComplexF64, 4N, 4N)
@@ -49,84 +50,39 @@ function hopping_matrix(mc::DQMC, m::ZCModel)
     for src in 1:N
         src_block = 2(src-1) + 1 : 2src
         # t_perp
-        T[src_block, src_block .+ N] .+= m.tperp * [1 0; 0 1]
-        T[src_block .+ N, src_block] .+= m.tperp * [1 0; 0 1]
+        T[src_block, src_block .+ 2N] .+= m.tperp * [1 0; 0 1]
+        T[src_block .+ 2N, src_block] .+= m.tperp * [1 0; 0 1]
 
         # t'
         for trg in l.ext_neighs[:, src]
             trg_block = 2(trg-1) + 1 : 2trg
             # up-up block
-            T[trg_block, src_block] += m.t2 * [1 0; 0 1]
+            T[trg_block, src_block] .+= m.t2 * [1 0; 0 1]
             # down down block
-            T[trg_block .+ N, src_block .+ N] += -m.t2 * [1 0; 0 1]
+            T[trg_block .+ 2N, src_block .+ 2N] .+= -m.t2 * [1 0; 0 1]
         end
 
         # σ_x
         for trg in l.neighs[1:3:end, src]
             trg_block = 2(trg-1) + 1 : 2trg
-            T[trg_block, src_block] += m.t1 * [0 1; 1 0]
-            T[trg_block .+ N, src_block .+ N] += -m.t1 * [0 1; 1 0]
+            T[trg_block, src_block] .+= m.t1 * [0 1; 1 0]
+            T[trg_block .+ 2N, src_block .+ 2N] .+= -m.t1 * [0 1; 1 0]
         end
 
         # σ_y
         for trg in l.neighs[2:3:end, src]
             trg_block = 2(trg-1) + 1 : 2trg
-            T[trg_block, src_block] += m.t1 * [0 -1im; 1im 0]
-            T[trg_block .+ N, src_block .+ N] += -m.t1 * [0 -1im; 1im 0]
+            T[trg_block, src_block] .+= m.t1 * [0 -1im; 1im 0]
+            T[trg_block .+ 2N, src_block .+ 2N] .+= -m.t1 * [0 -1im; 1im 0]
         end
 
         # σ_z
         for trg in l.neighs[3:3:end, src]
             trg_block = 2(trg-1) + 1 : 2trg
-            T[trg_block, src_block] += m.t1 * [1 0; 0 -1]
-            T[trg_block .+ N, src_block .+ N] += -m.t1 * [1 0; 0 -1]
+            T[trg_block, src_block] .+= m.t1 * [1 0; 0 -1]
+            T[trg_block .+ 2N, src_block .+ 2N] .+= -m.t1 * [1 0; 0 -1]
         end
-
-
-    # @inbounds @views begin
-    #     for src in 1:N
-    #         T[src, src] -= m.mu
-    #         T[src+N, src+N] -= m.mu
-    #
-    #         # spin up <- spin down
-    #         T[src, src+N] += m.tperp
-    #         # spin down <- spin up, sign from h.c.
-    #         T[src+N, src] += m.tperp
-    #
-    #         # sigma_z:  up -> up with +,  down -> down with -, H_down comes with -
-    #         trg = l.neighs[3, src]
-    #         T[trg, src] += m.t1
-    #         T[trg+N, src+N] += m.t1
-    #         # h.c.
-    #         T[src, trg] += m.t1
-    #         T[src+N, trg+N] += m.t1
-    #
-    #         # sigma_x:  no sign, switch up and down, H_down gives -
-    #         trg = l.neighs[1, src]
-    #         T[trg+N, src] += m.t1
-    #         T[trg, src+N] += -m.t1
-    #         # h.c.
-    #         T[src+N, trg] += m.t1
-    #         T[src, trg+N] += -m.t1
-    #
-    #         # sigma_y:  -i up -> down, i down -> up, H_down -
-    #         trg = l.neighs[2, src]
-    #         T[trg+N, src] += -1im * m.t1
-    #         T[trg, src+N] += -1im * m.t1
-    #         # h.c
-    #         T[src+N, trg] += -1im * m.t1
-    #         T[src, trg+N] += -1im * m.t1
-    #
-    #         for nb in 1:3
-    #             trg = l.ext_neighs[nb, src]
-    #             T[trg, src] += m.t2
-    #             T[trg+N, src+N] += -m.t2
-    #             # h.c.
-    #             T[src, trg] += m.t2
-    #             T[src+N, trg+N] += -m.t2
-    #         end
-    #     end
-    # end
+    end
 
     return T
 end
@@ -152,7 +108,7 @@ end
 
 
 @inline function propose_local(mc::DQMC, m::ZCModel, i::Int, slice::Int, conf::ZCConf)
-    N = length(m.l)
+    N = nsites(m)
     G = mc.s.greens
     Δτ = mc.p.delta_tau
     α = acosh(exp(0.5Δτ * m.U))
@@ -166,7 +122,7 @@ end
 end
 
 @inline function accept_local!(mc::DQMC, m::ZCModel, i::Int, slice::Int, conf::ZCConf, delta, detratio, ΔE_boson::Float64)
-    N = length(m.l)
+    N = nsites(m)
     G = mc.s.greens
     R, Δ = delta
 
