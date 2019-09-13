@@ -81,6 +81,7 @@ end
 
     @info "Running DQMC β=1.0, 100k + 100k sweeps, ≈1min"
     dqmc = DQMC(model, beta=1.0)
+    # run!(dqmc, thermalization = 100_000, sweeps = 100_000, verbose=false)
     run!(dqmc, thermalization = 100_000, sweeps = 100_000, verbose=false)
     G_DQMC = mean(dqmc.obs["greens"])
 
@@ -98,17 +99,16 @@ end
 
 @testset "Zhong Chao Model (ED)" begin
     model = MonteCarlo.ZCModel(
-        L = 3,
+        L = 2,
         U = 1.0,
-        mu = 0.0,
         t1 = 1.0,
         t2 = 1.0,
         tperp = 1.0
     )
 
-    @info "Running DQMC β=1.0, 100k + 100k sweeps, ≈1min"
-    dqmc = DQMC(model, beta=1.0)
-    run!(dqmc, thermalization = 10, sweeps = 10, verbose=false)
+    @info "Running ZC β=1.0, 100k + 100k sweeps, ≈1min"
+    dqmc = DQMC(model, beta=1.0, safe_mult=5)
+    @time run!(dqmc, thermalization = 100_000, sweeps = 100_000, verbose=false)
     G_DQMC = mean(dqmc.obs["greens"])
 
     @info "Running ED"
