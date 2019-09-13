@@ -164,7 +164,7 @@ function init_checkerboard_matrices(mc::DQMC, m::Model)
   H = heltype(mc)
   N = nsites(m)
   dtau = mc.p.delta_tau
-  mu = m.mu
+  # mu = :mu in fieldnames(typeof(m)) ? m.mu : 0.0
 
   s.checkerboard, s.groups, s.n_groups = build_checkerboard(l)
   n_grps = s.n_groups

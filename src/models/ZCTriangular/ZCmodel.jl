@@ -9,6 +9,9 @@ const ZCDistribution = Int8[-1,1]
     U::Float64 = 1.0
     @assert U >= 0. "U must be positive."
     t1::Float64 = 1.0
+    t1x::Float64 = t1
+    t1y::Float64 = t1
+    t1z::Float64 = t1
     t2::Float64 = 1.0
     tperp::Float64 = 1.0
 
@@ -33,7 +36,7 @@ import Base.show
 
 
 # implement `Model` interface
-@inline nsites(m::ZCModel) = 2length(m.l)
+@inline nsites(m::ZCModel) = length(m.l)
 
 
 # implement `DQMC` interface: mandatory
@@ -44,43 +47,59 @@ function hopping_matrix(mc::DQMC, m::ZCModel)
     # 2N for spin flip
     N = length(m.l)
     l = m.l
-    T = zeros(ComplexF64, 4N, 4N)
+    T = zeros(ComplexF64, 2N, 2N)
 
-    # Nearest neighbor hoppings
     for src in 1:N
-        src_block = 2(src-1) + 1 : 2src
         # t_perp
-        T[src_block, src_block .+ 2N] .+= m.tperp * [1 0; 0 1]
-        T[src_block .+ 2N, src_block] .+= m.tperp * [1 0; 0 1]
+        T[src, src + N] += m.tperp
+        T[src + N, src] += m.tperp
 
         # t'
         for trg in l.ext_neighs[:, src]
-            trg_block = 2(trg-1) + 1 : 2trg
+            l.isAsite[src] != l.isAsite[trg] && error(
+                "$src and $trg are on different sublattices, t2"
+            )
             # up-up block
-            T[trg_block, src_block] .+= m.t2 * [1 0; 0 1]
+            T[trg, src] += m.t2
             # down down block
-            T[trg_block .+ 2N, src_block .+ 2N] .+= -m.t2 * [1 0; 0 1]
+            T[trg + N, src + N] += -m.t2
         end
 
         # σ_x
         for trg in l.neighs[1:3:end, src]
-            trg_block = 2(trg-1) + 1 : 2trg
-            T[trg_block, src_block] .+= m.t1 * [0 1; 1 0]
-            T[trg_block .+ 2N, src_block .+ 2N] .+= -m.t1 * [0 1; 1 0]
+            l.isAsite[src] == l.isAsite[trg] && error(
+                "$src and $trg are on the same sublattice, σx"
+            )
+            T[trg, src] += m.t1x
+            T[trg + N, src + N] += -m.t1x
         end
 
         # σ_y
         for trg in l.neighs[2:3:end, src]
-            trg_block = 2(trg-1) + 1 : 2trg
-            T[trg_block, src_block] .+= m.t1 * [0 -1im; 1im 0]
-            T[trg_block .+ 2N, src_block .+ 2N] .+= -m.t1 * [0 -1im; 1im 0]
+            l.isAsite[src] == l.isAsite[trg] && error(
+                "$src and $trg are on the same sublattice, σy"
+            )
+            if l.isAsite[src]
+                T[trg, src] += m.t1y * 1im
+                T[trg + N, src + N] += -m.t1y * 1im
+            else
+                T[trg, src] += m.t1y * -1im
+                T[trg + N, src + N] += -m.t1y * -1im
+            end
         end
 
         # σ_z
         for trg in l.neighs[3:3:end, src]
-            trg_block = 2(trg-1) + 1 : 2trg
-            T[trg_block, src_block] .+= m.t1 * [1 0; 0 -1]
-            T[trg_block .+ 2N, src_block .+ 2N] .+= -m.t1 * [1 0; 0 -1]
+            l.isAsite[src] != l.isAsite[trg] && error(
+                "$src and $trg are on different sublattices, σz"
+            )
+            if l.isAsite[src]
+                T[trg, src] += m.t1z
+                T[trg + N, src + N] += -m.t1z
+            else
+                T[trg, src] += -m.t1z
+                T[trg + N, src + N] += m.t1z
+            end
         end
     end
 
@@ -97,11 +116,12 @@ This is a performance critical method.
 @inline function interaction_matrix_exp!(mc::DQMC, m::ZCModel,
             result::Matrix, conf::ZCConf, slice::Int, power::Float64=1.)
     dtau = mc.p.delta_tau
+    # TODO optimize
+    # compute this only once
     lambda = acosh(exp(m.U * dtau/2))
-    # result .= spdiagm(0 => exp.(sign(power) * lambda * conf[:,slice]))
     result .= spdiagm(0 => [
         (exp.(sign(power) * lambda * conf[:,slice]))...,
-        (exp.(sign(power) * lambda * conf[:,slice]))...
+        (exp.(-sign(power) * lambda * conf[:,slice]))...
     ])
     nothing
 end
@@ -111,10 +131,14 @@ end
     N = nsites(m)
     G = mc.s.greens
     Δτ = mc.p.delta_tau
+    # TODO optimize
+    # compute this only once
     α = acosh(exp(0.5Δτ * m.U))
 
+    # TODO optimize
+    # unroll determinant and matmult?
     ΔE_Boson = -2.0α * conf[i, slice]
-    Δ = exp(ΔE_Boson) - 1
+    Δ = [exp(ΔE_Boson) - 1 0.0; 0.0 exp(-ΔE_Boson) - 1]
     R = I + Δ * (I - G[i:N:end, i:N:end])
     detratio = det(R)
 

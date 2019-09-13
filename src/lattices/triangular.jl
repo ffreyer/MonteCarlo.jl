@@ -10,18 +10,19 @@ struct TriangularLattice <: AbstractLattice
     ext_neighs_cartesian::Array{Int, 3}
 
     lattice::Matrix{Int}
+    isAsite::Vector{Bool}
 
     # for generic checkerboard decomposition
     n_bonds::Int
     bonds::Matrix{Int} # src, trg, type
 end
 
-function TriangularLattice(L::Int)
-    sites = L^2
-    lattice = convert(Array, reshape(1:L^2, (L, L)))
-    neighs, neighs_cartesian = build_neighbortable(TriangularLattice, lattice, L)
+function TriangularLattice(L::Int; Lx=L, Ly=L)
+    sites = Lx * Ly
+    lattice = convert(Array, reshape(1:sites, (Lx, Ly)))
+    neighs, neighs_cartesian = build_neighbortable(TriangularLattice, lattice, Lx, Ly)
     ext_neighs, ext_neighs_cartesian = build_ext_neighbortable(
-        TriangularLattice, lattice, L
+        TriangularLattice, lattice, Lx, Ly
     )
 
     # for generic checkerboard decomposition
@@ -44,15 +45,17 @@ function TriangularLattice(L::Int)
         end
     end
 
+    isAsite = [iseven(i) for i in 1:Lx, j in 1:Ly][:]
+
     return TriangularLattice(
         L, sites,
         neighs, neighs_cartesian,
         ext_neighs, ext_neighs_cartesian,
-        lattice, n_bonds, bonds
+        lattice, isAsite, n_bonds, bonds
     )
 end
 
-function build_neighbortable(::Type{TriangularLattice}, lattice, L)
+function build_neighbortable(::Type{TriangularLattice}, lattice, Lx, Ly)
     up          = circshift(lattice, (-1,  0))
     upright     = circshift(lattice, (-1, -1))
     right       = circshift(lattice, ( 0, -1))
@@ -62,7 +65,7 @@ function build_neighbortable(::Type{TriangularLattice}, lattice, L)
 
     neighs = vcat(up[:]', upright[:]', right[:]', down[:]', downleft[:]', left[:]')
 
-    neighs_cartesian = Array{Int, 3}(undef, 6, L, L)
+    neighs_cartesian = Array{Int, 3}(undef, 6, Lx, Ly)
     neighs_cartesian[1,:,:] = up
     neighs_cartesian[2,:,:] = upright
     neighs_cartesian[3,:,:] = right
@@ -73,7 +76,7 @@ function build_neighbortable(::Type{TriangularLattice}, lattice, L)
     return neighs, neighs_cartesian
 end
 
-function build_ext_neighbortable(::Type{TriangularLattice}, lattice, L)
+function build_ext_neighbortable(::Type{TriangularLattice}, lattice, Lx, Ly)
     up          = circshift(lattice, (-2,  0))
     upright     = circshift(lattice, (-2, -2))
     right       = circshift(lattice, ( 0, -2))
@@ -83,7 +86,7 @@ function build_ext_neighbortable(::Type{TriangularLattice}, lattice, L)
 
     ext_neighs = vcat(up[:]', upright[:]', right[:]', down[:]', downleft[:]', left[:]')
 
-    ext_neighs_cartesian = Array{Int, 3}(undef, 6, L, L)
+    ext_neighs_cartesian = Array{Int, 3}(undef, 6, Lx, Ly)
     ext_neighs_cartesian[1,:,:] = up
     ext_neighs_cartesian[2,:,:] = upright
     ext_neighs_cartesian[3,:,:] = right

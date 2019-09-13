@@ -234,15 +234,15 @@ function sweep_spatial(mc::DQMC)
         mc.a.prop_local += 1
 
         if abs(imag(detratio)) > 1e-6
-            # println(
-            #     "Did you expect a sign problem? imag. detratio: ",
-            #     abs(imag(detratio))
-            # )
-            @printf(
+            @warn @sprintf(
                 "Did you expect a sign problem? imag. detratio: %.6e  (%.2e)\n",
-                abs(imag(detratio)),
-                abs(imag(detratio)) / abs(real(detratio))
-
+                abs(imag(detratio)), abs(imag(detratio)) / abs(real(detratio))
+            )
+        end
+        if real(detratio) < 0.0
+            @warn @sprintf(
+                "Did you expect a sign problem? negative detratio %.6e\n",
+                real(detratio)
             )
         end
         p = real(exp(- ΔE_boson) * detratio)

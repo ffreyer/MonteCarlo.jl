@@ -35,7 +35,7 @@ end
 
 @testset "Slice Matrices" begin
     m = HubbardModelAttractive(dims=1, L=8)
-    dqmc = DQMC(m, beta=5.0)
+    dqmc = DQMC(m, beta=5.0, delta_tau=0.001)
     eT = dqmc.s.hopping_matrix_exp
     eV = similar(eT)
     A = similar(eT)
