@@ -83,7 +83,7 @@ end
     dqmc = DQMC(model, beta=1.0)
     # run!(dqmc, thermalization = 100_000, sweeps = 100_000, verbose=false)
     run!(dqmc, thermalization = 100_000, sweeps = 100_000, verbose=false)
-    G_DQMC = mean(dqmc.obs["greens"])
+    G_DQMC = mean(dqmc.measurements[:Greens].obs)
 
     @info "Running ED"
     H = HamiltonMatrix(model)
