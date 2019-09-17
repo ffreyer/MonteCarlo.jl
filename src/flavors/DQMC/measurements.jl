@@ -1,11 +1,9 @@
-<<<<<<< HEAD
 ################################################################################
 ### General DQMC Measurements
 ################################################################################
 
 
-=======
->>>>>>> Measurements
+
 """
     GreensMeasurement(mc::DQMC, model)
 
@@ -49,10 +47,7 @@ end
 finish!(::BosonEnergyMeasurement, mc::DQMC, model) = nothing
 
 
-<<<<<<< HEAD
 
-=======
->>>>>>> Measurements
 function default_measurements(mc::DQMC, model)
     Dict(
         :conf => ConfigurationMeasurement(mc, model),
@@ -60,7 +55,6 @@ function default_measurements(mc::DQMC, model)
         :BosonEnergy => BosonEnergyMeasurement(mc, model)
     )
 end
-<<<<<<< HEAD
 
 
 
@@ -339,5 +333,3 @@ finish!(::SpinOneHalfMeasurement, ::DQMC, model) = nothing
 #     push!(m.n, n)
 #
 # end
-=======
->>>>>>> Measurements
