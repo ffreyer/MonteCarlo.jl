@@ -173,4 +173,4 @@ end
     return lambda * sum(hsfield)
 end
 
-include("observables.jl")
+include("measurements.jl")

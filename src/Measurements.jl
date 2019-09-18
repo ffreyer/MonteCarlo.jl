@@ -66,6 +66,7 @@ function measure!(m::ConfigurationMeasurement, mc, model, i::Int64)
     nothing
 end
 finish!(::ConfigurationMeasurement, mc, model) = nothing
+save(m::ConfigurationMeasurement, filename) = saveobs(m.obs, filename)
 
 ################################################################################
 # called by simulation

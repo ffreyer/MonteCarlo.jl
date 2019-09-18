@@ -22,6 +22,7 @@ function measure!(m::GreensMeasurement, mc::DQMC, model, i::Int64)
     push!(m.obs, greens(mc))
 end
 finish!(::GreensMeasurement, mc::DQMC, model) = nothing
+save(m::GreensMeasurement, filename) = saveobs(m.obs, filename)
 
 
 
@@ -45,6 +46,7 @@ function measure!(m::BosonEnergyMeasurement, mc::DQMC, model, i::Int64)
     push!(m.obs, energy_boson(mc, model, conf(mc)))
 end
 finish!(::BosonEnergyMeasurement, mc::DQMC, model) = nothing
+save(m::BosonEnergyMeasurement, filename) = saveobs(m.obs, filename)
 
 
 
@@ -84,7 +86,7 @@ Measures:
 * `m1x`, `m1y`, `m1z`: the average onsite magnetization in x, y, or z direction
 * `m2x`, `m2y`, `m2z`: the average spin density correlation between any two sites
 """
-struct CombinedMagnetizationMeasurement{
+struct MagnetizationMeasurement{
         OT1x <: AbstractObservable,
         OT1y <: AbstractObservable,
         OT1z <: AbstractObservable,
@@ -92,8 +94,6 @@ struct CombinedMagnetizationMeasurement{
         OT2x <: AbstractObservable,
         OT2y <: AbstractObservable,
         OT2z <: AbstractObservable,
-
-        OT3 <: AbstractObservable
     } <: SpinOneHalfMeasurement
 
     m1x::OT1x
@@ -107,47 +107,47 @@ struct CombinedMagnetizationMeasurement{
     # m_total::OT3
 end
 function MagnetizationMeasurement(mc::DQMC, model)
-    N = numsites(model)
-    T = greenseltype(mc, model)
+    N = nsites(model)
+    T = eltype(mc.s.greens)
     Ty = T <: Complex ? T : Complex(T)
 
     # Magnetizations
     m1x = LightObservable(
-        BinningAnalysis([zero(T) for _ in 1:N]),
-        name="Magnetization x"
+        LogBinner([zero(T) for _ in 1:N]),
+        "Magnetization x", "Observables.jld", "Magnetization x"
     )
     m1y = LightObservable(
-        BinningAnalysis([zero(Ty) for _ in 1:N]),
-        name="Magnetization y"
+        LogBinner([zero(Ty) for _ in 1:N]),
+        "Magnetization y", "Observables.jld", "Magnetization y"
     )
     m1z = LightObservable(
-        BinningAnalysis([zero(T) for _ in 1:N]),
-        name="Magnetization z"
+        LogBinner([zero(T) for _ in 1:N]),
+        "Magnetization z", "Observables.jld", "Magnetization z"
     )
 
     # Spin density correlation
     m2x = LightObservable(
-        BinningAnalysis([zero(T) for _ in 1:N, __ in 1:N]),
-        name="Spin Density Correlation x"
+        LogBinner([zero(T) for _ in 1:N, __ in 1:N]),
+        "Spin Density Correlation x", "Observables.jld", "Spin Density Correlation x"
     )
     m2y = LightObservable(
-        BinningAnalysis([zero(Ty) for _ in 1:N, __ in 1:N]),
-        name="Spin Density Correlation y"
+        LogBinner([zero(Ty) for _ in 1:N, __ in 1:N]),
+        "Spin Density Correlation y", "Observables.jld", "Spin Density Correlation y"
     )
     m2z = LightObservable(
-        BinningAnalysis([zero(T) for _ in 1:N, __ in 1:N]),
-        name="Spin Density Correlation z"
+        LogBinner([zero(T) for _ in 1:N, __ in 1:N]),
+        "Spin Density Correlation z", "Observables.jld", "Spin Density Correlation z"
     )
 
 
     # This can be calculated after the simulation
     # m_total = LightObservable(
-    #     BinningAnalysis([zero(promote_type(T, Ty)) for _ in 1:N]),
-    #     name="Local Moment" # TODO What is this?
+    #     LogBinner([zero(promote_type(T, Ty)) for _ in 1:N]),
+    #     "Local Moment", "Observables.jld", "Local Moment" # TODO What is this?
     # )
     MagnetizationMeasurement(
         m1x, m1y, m1z,
-        m2x, m2y, m2z,
+        m2x, m2y, m2z
         # m_total
     )
 end
@@ -195,9 +195,19 @@ function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
     # end
     # S /= N
 end
+function save(m::MagnetizationMeasurement, filename)
+    saveobs(m.m1x, filename)
+    saveobs(m.m1y, filename)
+    saveobs(m.m1z, filename)
+    saveobs(m.m2x, filename)
+    saveobs(m.m2y, filename)
+    saveobs(m.m2z, filename)
+end
 
 
 
+# TODO
+# move this somewhere else, it only works for triangular lattices
 struct SuperconductivityMeasurement{
         OT <: AbstractObservable,
         T
@@ -216,33 +226,33 @@ struct SuperconductivityMeasurement{
     temp5::Matrix{T}
     temp6::Matrix{T}
 end
-function SuperconductivityMeasurement(mc::DQMC, model::ZCTriangular)
-    T = eltype(G)
-    N = numsites(model)
+function SuperconductivityMeasurement(mc::DQMC, model)
+    T = eltype(mc.s.greens)
+    N = nsites(model)
 
     s_wave      = LightObservable(
         LogBinner(zeros(T, N, N)),
-        name = "s-wave equal time pairing correlation"
+        "s-wave equal time pairing correlation", "Observables.jld", "s-wave equal time pairing correlation"
     )
     dxy_wave    = LightObservable(
         LogBinner(zeros(T, N, N)),
-        name = "d_xy-wave equal time pairing correlation"
+        "d_xy-wave equal time pairing correlation", "Observables.jld", "d_xy-wave equal time pairing correlation"
     )
     dx2_y2_wave = LightObservable(
         LogBinner(zeros(T, N, N)),
-        name = "d_{x²-y²}-wave equal time pairing correlation"
+        "d_{x²-y²}-wave equal time pairing correlation", "Observables.jld", "d_{x²-y²}-wave equal time pairing correlation"
     )
     f_wave      = LightObservable(
         LogBinner(zeros(T, N, N)),
-        name = "f-wave equal time pairing correlation"
+        "f-wave equal time pairing correlation", "Observables.jld", "f-wave equal time pairing correlation"
     )
     py_wave     = LightObservable(
         LogBinner(zeros(T, N, N)),
-        name = "p_y-wave equal time pairing correlation"
+        "p_y-wave equal time pairing correlation", "Observables.jld", "p_y-wave equal time pairing correlation"
     )
     px_wave     = LightObservable(
         LogBinner(zeros(T, N, N)),
-        name = "p_x-wave equal time pairing correlation"
+        "p_x-wave equal time pairing correlation", "Observables.jld", "p_x-wave equal time pairing correlation"
     )
 
     SuperconductivityMeasurement(
@@ -251,11 +261,11 @@ function SuperconductivityMeasurement(mc::DQMC, model::ZCTriangular)
         zeros(T, N, N), zeros(T, N, N), zeros(T, N, N)
     )
 end
-function measure!(m::SuperconductivityMeasurement, mc::DQMC, model::ZCTriangular, i::Int64)
+function measure!(m::SuperconductivityMeasurement, mc::DQMC, model, i::Int64)
     # Equal time pairing correlation
     G = greens(mc)
     IG = I - G
-    N = numsites(model)
+    N = nsites(model)
 
     # see 10.1103/PhysRevB.72.134513
     # f[i, :] are the prefactors for [s, dxy, dx2-y2, f, py, px][i]
@@ -277,12 +287,12 @@ function measure!(m::SuperconductivityMeasurement, mc::DQMC, model::ZCTriangular
                 temp2 .+= f[:, k] .* f[:, l] * IG[ip + N, jp + N]
             end
         end
-        m.temp1[i, j] = -0.25 * (IG[j, i] * temp1[1] + temp2[1] * IG[i, j]))
-        m.temp2[i, j] = -0.25 * (IG[j, i] * temp1[2] + temp2[2] * IG[i, j]))
-        m.temp3[i, j] = -0.25 * (IG[j, i] * temp1[3] + temp2[3] * IG[i, j]))
-        m.temp4[i, j] = -0.25 * (IG[j, i] * temp1[4] + temp2[4] * IG[i, j]))
-        m.temp5[i, j] = -0.25 * (IG[j, i] * temp1[5] + temp2[5] * IG[i, j]))
-        m.temp6[i, j] = -0.25 * (IG[j, i] * temp1[6] + temp2[6] * IG[i, j]))
+        m.temp1[i, j] = -0.25 * (IG[j, i] * temp1[1] + temp2[1] * IG[i, j])
+        m.temp2[i, j] = -0.25 * (IG[j, i] * temp1[2] + temp2[2] * IG[i, j])
+        m.temp3[i, j] = -0.25 * (IG[j, i] * temp1[3] + temp2[3] * IG[i, j])
+        m.temp4[i, j] = -0.25 * (IG[j, i] * temp1[4] + temp2[4] * IG[i, j])
+        m.temp5[i, j] = -0.25 * (IG[j, i] * temp1[5] + temp2[5] * IG[i, j])
+        m.temp6[i, j] = -0.25 * (IG[j, i] * temp1[6] + temp2[6] * IG[i, j])
     end
     push!(m.s_wave, m.temp1)
     push!(m.dxy_wave, m.temp2)
@@ -290,6 +300,14 @@ function measure!(m::SuperconductivityMeasurement, mc::DQMC, model::ZCTriangular
     push!(m.f_wave, m.temp4)
     push!(m.py_wave, m.temp5)
     push!(m.px_wave, m.temp6)
+end
+function save(m::SuperconductivityMeasurement, filename)
+    saveobs(m.s_wave, filename)
+    saveobs(m.dxy_wave, filename)
+    saveobs(m.dx2_y2_wave, filename)
+    saveobs(m.f_wave, filename)
+    saveobs(m.py_wave, filename)
+    saveobs(m.px_wave, filename)
 end
 
 
@@ -310,13 +328,13 @@ finish!(::SpinOneHalfMeasurement, ::DQMC, model) = nothing
 #     obs::OT
 # end
 # function BosonEnergyMeasurement(mc::DQMC, model)
-#     N = numsites(model)
+#     N = nsites(model)
 #     T = greenseltype(mc, model)
 #
 #     # Magnetizations
 #     n = LightObservable(
-#         BinningAnalysis([zero(T) for _ in 1:N]),
-#         name="Particle number"
+#         LogBinner([zero(T) for _ in 1:N]),
+#         "Particle number", "Observables.jld", "Particle number"
 #     )
 #     BosonEnergyMeasurement(n)
 # end
