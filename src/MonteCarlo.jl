@@ -25,9 +25,6 @@ include("lattices/triangular.jl")
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/DQMC.jl")
 
-include("flavors/MC/MC.jl")
-include("flavors/DQMC/DQMC.jl")
-
 include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
 include("models/ZCTriangular/ZCmodel.jl")
