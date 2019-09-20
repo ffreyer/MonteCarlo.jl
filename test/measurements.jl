@@ -27,9 +27,9 @@ end
     model = IsingModel(dims=2, L=2)
     mc = MC(model, beta=1.0)
 
-    @test_throws MethodError MonteCarlo.prepare!(m, mc, model)
+    @test nothing == MonteCarlo.prepare!(m, mc, model)
     @test_throws MethodError MonteCarlo.measure!(m, mc, model, 1)
-    @test_throws MethodError MonteCarlo.finish!(m, mc, model)
+    @test nothing == MonteCarlo.finish!(m, mc, model)
     @test MonteCarlo.default_measurements(mc, dummy_model) == Dict{Symbol, AbstractMeasurement}()
 end
 
@@ -135,4 +135,17 @@ end
         mc.thermalization_measurements[:conf] isa ConfigurationMeasurement
     delete!(mc, ConfigurationMeasurement, :TH)
     @test !haskey(mc.thermalization_measurements, :TH)
+end
+
+@testset "Saving and Loading" begin
+    model = IsingModel(dims=2, L=2)
+    mc = MC(model, beta=1.0)
+    run!(mc, thermalization=10, sweeps=10, verbose=false)
+    push!(mc, :conf => ConfigurationMeasurement, :TH)
+
+    obs = observables(mc)
+    save_measurements!(mc, "test.jld", force_overwrite=true)
+    _obs = load_measurements("test.jld")
+    @test obs == _obs
+    rm("test.jld")
 end

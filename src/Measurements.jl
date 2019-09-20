@@ -7,14 +7,6 @@ abstract type AbstractMeasurement end
 
 
 """
-    prepare!(measurement, mc, model)
-
-This method is called between the thermalization and the measurement phase.
-"""
-function prepare!(m::AbstractMeasurement, mc, model)
-    throw(MethodError(prepare!, (m, mc, model)))
-end
-"""
     measure!(measurement, mc, model, sweep_index)
 
 Performs a measurement during the measurement phase.
@@ -22,28 +14,26 @@ Performs a measurement during the measurement phase.
 function measure!(m::AbstractMeasurement, mc, model, i)
     throw(MethodError(measure!, (m, mc, model)))
 end
+
+
+###################################
+# You may also implement
+
+
+"""
+    prepare!(measurement, mc, model)
+
+This method is called between the thermalization and the measurement phase.
+"""
+prepare!(m::AbstractMeasurement, mc, model) = nothing
+
+
 """
     finish!(measurement, mc, model)
 
 Finish a measurement. This method is called after the measurement phase.
 """
-function finish!(m::AbstractMeasurement, mc, model)
-    throw(MethodError(finish!, (m, mc, model)))
-end
-
-
-################################################################################
-# A new model may implement the following for convenience
-
-
-"""
-    default_measurements(mc, model)
-
-Return a dictionary of default measurements for a given Monte Carlo flavour and
-model. If there is no implementation given for the specific Monte Carlo flavour
-an empty dictionary will be returned.
-"""
-default_measurements(mc, model) = Dict{Symbol, AbstractMeasurement}()
+finish!(m::AbstractMeasurement, mc, model) = nothing
 
 
 """
@@ -72,6 +62,20 @@ end
 
 
 ################################################################################
+# A new model may implement the following for convenience
+
+
+"""
+    default_measurements(mc, model)
+
+Return a dictionary of default measurements for a given Monte Carlo flavour and
+model. If there is no implementation given for the specific Monte Carlo flavour
+an empty dictionary will be returned.
+"""
+default_measurements(mc, model) = Dict{Symbol, AbstractMeasurement}()
+
+
+################################################################################
 # mc based, default measurements
 
 
@@ -95,7 +99,6 @@ function measure!(m::ConfigurationMeasurement, mc, model, i::Int64)
     nothing
 end
 finish!(::ConfigurationMeasurement, mc, model) = nothing
-save(m::ConfigurationMeasurement, filename) = saveobs(m.obs, filename)
 
 
 ################################################################################
@@ -192,8 +195,8 @@ name of the observable.
 function observables(mc::MonteCarloFlavor)
     th_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
         k => let
-            fns = fieldnames(typeof(mc))
-            os = [getfield(mc, fn) for fn in fns if getfield(mc, fn) isa AbstractObservable]
+            fns = fieldnames(typeof(m))
+            os = [getfield(m, fn) for fn in fns if getfield(m, fn) isa AbstractObservable]
             Dict{String, AbstractObservable}(MonteCarloObservable.name(o) => o for o in os)
         end for (k, m) in mc.thermalization_measurements
     )
