@@ -45,8 +45,4 @@ function __init__()
     @require LatPhysBase="eec5c15a-e8bd-11e8-0d23-6799ca40c963" include("lattices/LatPhys.jl")
 end
 
-function __init__()
-    @require LatPhysBase="eec5c15a-e8bd-11e8-0d23-6799ca40c963" include("lattices/LatPhys.jl")
-end
-
 end # module
