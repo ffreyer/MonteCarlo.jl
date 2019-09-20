@@ -105,7 +105,7 @@ end
 function MagnetizationMeasurement(mc::DQMC, model)
     N = nsites(model)
     T = eltype(mc.s.greens)
-    Ty = T <: Complex ? T : Complex(T)
+    Ty = T <: Complex ? T : Complex{T}
 
     # Magnetizations
     m1x = LightObservable(
