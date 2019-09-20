@@ -53,6 +53,11 @@ function SuperconductivityMeasurement(mc::DQMC, model::ZCModel)
 end
 function measure!(m::SuperconductivityMeasurement, mc::DQMC, model::ZCModel, i::Int64)
     # Equal time pairing correlation
+    # Assumptions:
+    # - neighs are always ordered the same, i.e. all neighs[1, :] point in the
+    #   same direction
+    # - the upper left block of G is spin up - spin up, the lower right spin down
+    #   spin down
     G = greens(mc)
     IG = I - G
     N = nsites(model)
@@ -73,10 +78,13 @@ function measure!(m::SuperconductivityMeasurement, mc::DQMC, model::ZCModel, i::
         temp2 = zeros(eltype(G), 6)
         for (k, ip) in enumerate(model.l.neighs[:, i])
             for (l, jp) in enumerate(model.l.neighs[:, j])
+                # x = prefactor(i, dir) * prefactor(j, dir) *
+                #      (I - G)_{i+a, j+a}^{down, down}
                 temp1 .+= f[:, k] .* f[:, l] * IG[jp + N, ip + N]
                 temp2 .+= f[:, k] .* f[:, l] * IG[ip + N, jp + N]
             end
         end
+        #                  (I-G)_{i, j}^{up, up} * (∑ x) + h.c.
         m.temp1[i, j] = -0.25 * (IG[j, i] * temp1[1] + temp2[1] * IG[i, j])
         m.temp2[i, j] = -0.25 * (IG[j, i] * temp1[2] + temp2[2] * IG[i, j])
         m.temp3[i, j] = -0.25 * (IG[j, i] * temp1[3] + temp2[3] * IG[i, j])
@@ -91,15 +99,6 @@ function measure!(m::SuperconductivityMeasurement, mc::DQMC, model::ZCModel, i::
     push!(m.py_wave, m.temp5)
     push!(m.px_wave, m.temp6)
 end
-function save(m::SuperconductivityMeasurement, filename)
-    saveobs(m.s_wave, filename)
-    saveobs(m.dxy_wave, filename)
-    saveobs(m.dx2_y2_wave, filename)
-    saveobs(m.f_wave, filename)
-    saveobs(m.py_wave, filename)
-    saveobs(m.px_wave, filename)
-end
-
 
 
 struct ChiralityMeasurement{

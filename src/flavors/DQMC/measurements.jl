@@ -72,7 +72,6 @@ function prepare!(m::SpinOneHalfMeasurement, mc::DQMC, model)
         "the given model has $(model.flv)."
     ))
 end
-finish!(::SpinOneHalfMeasurement, ::DQMC, model) = nothing
 
 
 
@@ -192,14 +191,6 @@ function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
     # end
     # S /= N
 end
-function save(m::MagnetizationMeasurement, filename)
-    saveobs(m.m1x, filename)
-    saveobs(m.m1y, filename)
-    saveobs(m.m1z, filename)
-    saveobs(m.m2x, filename)
-    saveobs(m.m2y, filename)
-    saveobs(m.m2z, filename)
-end
 
 
 
@@ -210,9 +201,6 @@ end
 
 
 abstract type FermionMeasurement <: AbstractMeasurement end
-
-prepare!(::FermionMeasurement, ::DQMC, model) = nothing
-finish!(::FermionMeasurement, ::DQMC, model) = nothing
 
 
 # struct BosonEnergyMeasurement{OT <: AbstractObservable} <: FermionMeasurement
