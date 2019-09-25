@@ -3,6 +3,7 @@ struct SuperconductivityMeasurement{
         T
     } <: SpinOneHalfMeasurement
     s_wave::OT
+    ext_s_wave::OT
     dxy_wave::OT
     dx2_y2_wave::OT
     f_wave::OT
@@ -16,42 +17,46 @@ struct SuperconductivityMeasurement{
     temp5::Matrix{T}
     temp6::Matrix{T}
 end
-function SuperconductivityMeasurement(mc::DQMC, model::ZCModel)
+function SuperconductivityMeasurement(mc::DQMC, model)
     T = eltype(mc.s.greens)
     N = nsites(model)
 
     s_wave      = LightObservable(
         LogBinner(zeros(T, N, N)),
-        "s-wave equal time pairing correlation", "Observables.jld", "s-wave equal time pairing correlation"
+        "s-wave equal time pairing correlation", "Observables.jld", "etpc-s"
+    )
+    ext_s_wave      = LightObservable(
+        LogBinner(zeros(T, N, N)),
+        "extended s-wave equal time pairing correlation", "Observables.jld", "etpc-se"
     )
     dxy_wave    = LightObservable(
         LogBinner(zeros(T, N, N)),
-        "d_xy-wave equal time pairing correlation", "Observables.jld", "d_xy-wave equal time pairing correlation"
+        "d_xy-wave equal time pairing correlation", "Observables.jld", "etpc-dxy"
     )
     dx2_y2_wave = LightObservable(
         LogBinner(zeros(T, N, N)),
-        "d_{x²-y²}-wave equal time pairing correlation", "Observables.jld", "d_{x²-y²}-wave equal time pairing correlation"
+        "d_{x²-y²}-wave equal time pairing correlation", "Observables.jld", "etpc-dx2y2"
     )
     f_wave      = LightObservable(
         LogBinner(zeros(T, N, N)),
-        "f-wave equal time pairing correlation", "Observables.jld", "f-wave equal time pairing correlation"
+        "f-wave equal time pairing correlation", "Observables.jld", "etpc-f"
     )
     py_wave     = LightObservable(
         LogBinner(zeros(T, N, N)),
-        "p_y-wave equal time pairing correlation", "Observables.jld", "p_y-wave equal time pairing correlation"
+        "p_y-wave equal time pairing correlation", "Observables.jld", "etpc-py"
     )
     px_wave     = LightObservable(
         LogBinner(zeros(T, N, N)),
-        "p_x-wave equal time pairing correlation", "Observables.jld", "p_x-wave equal time pairing correlation"
+        "p_x-wave equal time pairing correlation", "Observables.jld", "etpc-px"
     )
 
     SuperconductivityMeasurement(
-        s_wave, dxy_wave, dx2_y2_wave, f_wave, py_wave, px_wave,
+        s_wave, ext_s_wave, dxy_wave, dx2_y2_wave, f_wave, py_wave, px_wave,
         zeros(T, N, N), zeros(T, N, N), zeros(T, N, N),
         zeros(T, N, N), zeros(T, N, N), zeros(T, N, N)
     )
 end
-function measure!(m::SuperconductivityMeasurement, mc::DQMC, model::ZCModel, i::Int64)
+function measure!(m::SuperconductivityMeasurement, mc::DQMC, model, i::Int64)
     # Equal time pairing correlation
     # Assumptions:
     # - neighs are always ordered the same, i.e. all neighs[1, :] point in the
@@ -74,25 +79,24 @@ function measure!(m::SuperconductivityMeasurement, mc::DQMC, model::ZCModel, i::
     ]
 
     for i in 1:N, j in 1:N
-        temp1 = zeros(eltype(G), 6)
-        temp2 = zeros(eltype(G), 6)
+        temp = zeros(eltype(G), 6)
         for (k, ip) in enumerate(model.l.neighs[:, i])
             for (l, jp) in enumerate(model.l.neighs[:, j])
                 # x = prefactor(i, dir) * prefactor(j, dir) *
-                #      (I - G)_{i+a, j+a}^{down, down}
-                temp1 .+= f[:, k] .* f[:, l] * IG[jp + N, ip + N]
-                temp2 .+= f[:, k] .* f[:, l] * IG[ip + N, jp + N]
+                temp .+= f[:, k] .* f[:, l] * (
+                    G[i, j] * G[ip+N, jp+N] - G[i, jp+N] * G[ip+N, j]
+                )
             end
         end
-        #                  (I-G)_{i, j}^{up, up} * (∑ x) + h.c.
-        m.temp1[i, j] = -0.25 * (IG[j, i] * temp1[1] + temp2[1] * IG[i, j])
-        m.temp2[i, j] = -0.25 * (IG[j, i] * temp1[2] + temp2[2] * IG[i, j])
-        m.temp3[i, j] = -0.25 * (IG[j, i] * temp1[3] + temp2[3] * IG[i, j])
-        m.temp4[i, j] = -0.25 * (IG[j, i] * temp1[4] + temp2[4] * IG[i, j])
-        m.temp5[i, j] = -0.25 * (IG[j, i] * temp1[5] + temp2[5] * IG[i, j])
-        m.temp6[i, j] = -0.25 * (IG[j, i] * temp1[6] + temp2[6] * IG[i, j])
+        m.temp1[i, j] = temp[1]
+        m.temp2[i, j] = temp[2]
+        m.temp3[i, j] = temp[3]
+        m.temp4[i, j] = temp[4]
+        m.temp5[i, j] = temp[5]
+        m.temp6[i, j] = temp[6]
     end
-    push!(m.s_wave, m.temp1)
+    push!(m.s_wave, G[1:N, 1:N] .* G[N+1:2N, N+1:2N] - G[1:N, N+1:2N] .* G[N+1:2N, 1:N])
+    push!(m.ext_s_wave, m.temp1)
     push!(m.dxy_wave, m.temp2)
     push!(m.dx2_y2_wave, m.temp3)
     push!(m.f_wave, m.temp4)
@@ -101,42 +105,43 @@ function measure!(m::SuperconductivityMeasurement, mc::DQMC, model::ZCModel, i::
 end
 
 
-struct ChiralityMeasurement{
-        OT <: AbstractObservable
-    } <: SpinOneHalfMeasurement
-    triplets::Vector{Vector{Int64}}
-    obs::OT
-end
-function ChiralityMeasurement(mc::DQMC, model::ZCModel)
-    NN = model.l.neighs
-    # Generate triplets of sites which from a triangle.
-    # each triplet rotates the same way
-    triplets = [
-        [src, NN[mod1(4+i, 6), src], NN[mod1(6+i, 6), NN[mod1(4+i, 6), src]]]
-        for src in 1:nsites(model) for i in 0:1
-    ]
-    T = eltype(mc.s.greens)
-    obs = LightObservable(
-        LogBinner(zeros(T <: Complex ? T : Complex{T}, length(triplets))),
-        "Plaquette Chirality", "Observables.jld", "Plaquette Chirality"
-    )
-    ChiralityMeasurement(triplets, obs)
-end
-function measure!(m::ChiralityMeasurement, mc::DQMC, model, i)
-    N = nsites(model)
-    G = greens(mc)
-    values = map(m.triplets) do t
-        i1, i2, i3 = t
-        spins = [[
-            -G[i+N, i] - G[i, i+N],
-            -1im * (G[i, i+N] - G[i+N, i]),
-            G[i+N, i+N] - G[i, i]
-        ] for i in t]
-        dot(cross(spins[1], spins[2]), spins[3]) / 8
-    end
-    push!(m.obs, values)
-    nothing
-end
+# # nah
+# struct ChiralityMeasurement{
+#         OT <: AbstractObservable
+#     } <: SpinOneHalfMeasurement
+#     triplets::Vector{Vector{Int64}}
+#     obs::OT
+# end
+# function ChiralityMeasurement(mc::DQMC, model::ZCModel)
+#     NN = model.l.neighs
+#     # Generate triplets of sites which from a triangle.
+#     # each triplet rotates the same way
+#     triplets = [
+#         [src, NN[mod1(4+i, 6), src], NN[mod1(6+i, 6), NN[mod1(4+i, 6), src]]]
+#         for src in 1:nsites(model) for i in 0:1
+#     ]
+#     T = eltype(mc.s.greens)
+#     obs = LightObservable(
+#         LogBinner(zeros(T <: Complex ? T : Complex{T}, length(triplets))),
+#         "Plaquette Chirality", "Observables.jld", "Plaquette Chirality"
+#     )
+#     ChiralityMeasurement(triplets, obs)
+# end
+# function measure!(m::ChiralityMeasurement, mc::DQMC, model, i)
+#     N = nsites(model)
+#     G = greens(mc)
+#     values = map(m.triplets) do t
+#         i1, i2, i3 = t
+#         spins = [[
+#             -G[i+N, i] - G[i, i+N],
+#             -1im * (G[i, i+N] - G[i+N, i]),
+#             G[i+N, i+N] - G[i, i]
+#         ] for i in t]
+#         dot(cross(spins[1], spins[2]), spins[3]) / 8
+#     end
+#     push!(m.obs, values)
+#     nothing
+# end
 
 
 
@@ -146,7 +151,7 @@ function default_measurements(mc::DQMC, model::ZCModel)
         :Greens => GreensMeasurement(mc, model),
         :BosonEnergy => BosonEnergyMeasurement(mc, model),
         :Magnetization => MagnetizationMeasurement(mc, model),
-        :Superconductivity => SuperconductivityMeasurement(mc, model),
-        :Chirality => ChiralityMeasurement(mc, model)
+        :Superconductivity => SuperconductivityMeasurement(mc, model)
+        # :Chirality => ChiralityMeasurement(mc, model)
     )
 end
