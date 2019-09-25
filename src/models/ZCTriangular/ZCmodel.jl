@@ -127,7 +127,10 @@ This is a performance critical method.
 end
 
 
-@inline function propose_local(mc::DQMC, m::ZCModel, i::Int, slice::Int, conf::ZCConf)
+@inline @fastmath @inbounds function propose_local(
+        mc::DQMC, m::ZCModel, i::Int, slice::Int, conf::ZCConf
+    )
+
     N = nsites(m)
     G = mc.s.greens
     Δτ = mc.p.delta_tau
@@ -136,31 +139,49 @@ end
     α = acosh(exp(0.5Δτ * m.U))
 
     # TODO optimize
-    # unroll determinant and matmult?
+    # unroll matmult?
     ΔE_Boson = -2.0α * conf[i, slice]
     Δ = [exp(ΔE_Boson) - 1 0.0; 0.0 exp(-ΔE_Boson) - 1]
     R = I + Δ * (I - G[i:N:end, i:N:end])
-    detratio = det(R)
+    # Calculate det of 2x2 Matrix
+    # det() vs unrolled: 206ns -> 2.28ns
+    detratio = R[1, 1] * R[2, 2] - R[1, 2] * R[2, 1]
 
     return detratio, ΔE_Boson, (R, Δ)
 end
 
-@inline function accept_local!(mc::DQMC, m::ZCModel, i::Int, slice::Int, conf::ZCConf, delta, detratio, ΔE_boson::Float64)
+@inline @inbounds @fastmath function accept_local!(
+        mc::DQMC, m::ZCModel, i::Int, slice::Int, conf::ZCConf,
+        delta, detratio, ΔE_boson::Float64
+    )
+
     N = nsites(m)
     G = mc.s.greens
     R, Δ = delta
 
     # TODO optimize
     # BLAS?
-    @inbounds begin
-        IG = -G[:, i:N:end]
-        IG[i, 1] += 1.0
-        IG[i+N, 2] += 1.0
-        mc.s.greens_temp = IG * inv(R) * Δ * G[i:N:end, :]
-        G .-= mc.s.greens_temp
 
-        conf[i, slice] *= -1
-    end
+    # inverting R in-place, using that R is 2x2
+    # speed up: 470ns -> 2.6ns, see matrix_inverse.jl
+    inv_div = 1.0 / detratio
+    R[1, 2] = -R[1, 2] * inv_div
+    R[2, 1] = -R[2, 1] * inv_div
+    x = R[1, 1]
+    R[1, 1] = R[2, 2] * inv_div
+    R[2, 2] = x * inv_div
+
+    IG = -G[:, i:N:end]
+    IG[i, 1] += 1.0
+    IG[i+N, 2] += 1.0
+
+    R = R * Δ
+    IG = IG * R
+    # mc.s.greens_temp = IG * (R * Δ) * G[i:N:end, :]
+    mul!(mc.s.greens_temp, IG, G[i:N:end, :])
+    G .-= mc.s.greens_temp
+
+    conf[i, slice] *= -1
 
     nothing
 end
