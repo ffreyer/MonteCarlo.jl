@@ -79,28 +79,17 @@ end
     MagnetizationMeasurement(mc::DQMC, model)
 
 Measures:
-* `m1x`, `m1y`, `m1z`: the average onsite magnetization in x, y, or z direction
-* `m2x`, `m2y`, `m2z`: the average spin density correlation between any two sites
+* `x`, `y`, `z`: the average onsite magnetization in x, y, or z direction
 """
 struct MagnetizationMeasurement{
-        OT1x <: AbstractObservable,
-        OT1y <: AbstractObservable,
-        OT1z <: AbstractObservable,
-
-        OT2x <: AbstractObservable,
-        OT2y <: AbstractObservable,
-        OT2z <: AbstractObservable,
+        OTx <: AbstractObservable,
+        OTy <: AbstractObservable,
+        OTz <: AbstractObservable,
     } <: SpinOneHalfMeasurement
 
-    m1x::OT1x
-    m1y::OT1y
-    m1z::OT1z
-
-    m2x::OT2x
-    m2y::OT2y
-    m2z::OT2z
-
-    # m_total::OT3
+    x::OTx
+    y::OTy
+    z::OTz
 end
 function MagnetizationMeasurement(mc::DQMC, model)
     N = nsites(model)
@@ -121,6 +110,53 @@ function MagnetizationMeasurement(mc::DQMC, model)
         "Magnetization z", "Observables.jld", "Magnetization z"
     )
 
+    MagnetizationMeasurement(m1x, m1y, m1z)
+end
+function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
+    N = nsites(model)
+    G = greens(mc)
+    IG = I - G
+
+    # G[1:N,    1:N]    up -> up section
+    # G[N+1:N,  1:N]    down -> up section
+    # ...
+    # G[i, j] = c_i c_j^†
+
+    # Magnetization
+    # c_{i, up}^† c_{i, down} + c_{i, down}^† c_{i, up}
+    mx = [- G[i+N, i] - G[i, i+N]           for i in 1:N]
+    # -i [c_{i, up}^† c_{i, down} - c_{i, down}^† c_{i, up}]
+    my = [-1im * (G[i, i+N] - G[i+N, i])    for i in 1:N]
+    # c_{i, up}^† c_{i, up} - c_{i, down}^† c_{i, down}
+    mz = [G[i+N, i+N] - G[i, i]             for i in 1:N]
+    push!(m.x, mx)
+    push!(m.y, my)
+    push!(m.z, mz)
+end
+
+
+
+"""
+    SpinDensityCorrelationMeasurement(mc::DQMC, model)
+
+Measures:
+* `x`, `y`, `z`: the average spin density correlation between any two sites
+"""
+struct SpinDensityCorrelationMeasurement{
+        OTx <: AbstractObservable,
+        OTy <: AbstractObservable,
+        OTz <: AbstractObservable,
+    } <: SpinOneHalfMeasurement
+
+    x::OTx
+    y::OTy
+    z::OTz
+end
+function MagnetizationMeasurement(mc::DQMC, model)
+    N = nsites(model)
+    T = eltype(mc.s.greens)
+    Ty = T <: Complex ? T : Complex{T}
+
     # Spin density correlation
     m2x = LightObservable(
         LogBinner([zero(T) for _ in 1:N, __ in 1:N]),
@@ -135,62 +171,81 @@ function MagnetizationMeasurement(mc::DQMC, model)
         "Spin Density Correlation z", "Observables.jld", "Spin Density Correlation z"
     )
 
-
-    # This can be calculated after the simulation
-    # m_total = LightObservable(
-    #     LogBinner([zero(promote_type(T, Ty)) for _ in 1:N]),
-    #     "Local Moment", "Observables.jld", "Local Moment" # TODO What is this?
-    # )
-    MagnetizationMeasurement(
-        m1x, m1y, m1z,
-        m2x, m2y, m2z
-        # m_total
-    )
+    MagnetizationMeasurement(x, y, z)
 end
 function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
     N = nsites(model)
     G = greens(mc)
+    IG = I - G
 
     # G[1:N,    1:N]    up -> up section
     # G[N+1:N,  1:N]    down -> up section
     # ...
     # G[i, j] = c_i c_j^†
 
-    # Magnetization
-    # c_{i, up}^† c_{i, down} + c_{i, down}^† c_{i, up}
-    mx = [- G[i+N, i] - G[i, i+N]           for i in 1:N]
-    # -i [c_{i, up}^† c_{i, down} - c_{i, down}^† c_{i, up}]
-    my = [-1im * (G[i, i+N] - G[i+N, i])    for i in 1:N]
-    # c_{i, up}^† c_{i, up} - c_{i, down}^† c_{i, down}
-    mz = [G[i+N, i+N] - G[i, i]             for i in 1:N]
-    push!(m.m1x, mx)
-    push!(m.m1y, my)
-    push!(m.m1z, mz)
-
+    # NOTE
+    # these maybe wrong, maybe IG -> G
     # Spin Density Correlation
-    # = m_i^x * m_j^x
-    m2x = mx * mx'
-    m2y = my * my'
-    m2z = mz * mz'
-    push!(m.m2x, m2x)
-    push!(m.m2y, m2y)
-    push!(m.m2z, m2z)
-
-    # # Local Moment (?)
-    # # ⟨m_i^2⟩ = ⟨(m_i^x)^2 + (m_i^y)^2 + (m_i^z)^2⟩
-    # m_total = [m2x[i, i] + m2y[i, i] + m2z[i, i] for i in 1:N]
-    # push!(m.m_total, m_total)
-
-    # # S = zero(eltype(m.m2y))
-    # q = given
-    # for i in 1:N, j in 1:N
-    #     # TODO: should i, j be lattice indices (multiple dimensions)?
-    #     S += exp(1im * q * (i - j)) * (
-    #         m1x[i] * m1x[j] + m1y[i] * m1y[j] + m1z[i] * m1z[j]
-    #     ) / 4
-    # end
-    # S /= N
+    m2x = zeros(eltype(G), N, N)
+    m2y = zeros(eltype(G), N, N)
+    m2z = zeros(eltype(G), N, N)
+    for i in 1:N, j in 1:N
+        m2x[i, j] = (
+            IG[i+N, i] * IG[j+N, j] + IG[j+N, i] * G[i+N, j] +
+            IG[i+N, i] * IG[j, j+N] + IG[j, i] * G[i+N, j+N] +
+            IG[i, i+N] * IG[j+N, j] + IG[j+N, i+N] * G[i, j] +
+            IG[i, i+N] * IG[j, j+N] + IG[j, i+N] * G[i, j+N]
+        )
+        m2y[i, j] = (
+            - IG[i+N, i] * IG[j+N, j] - IG[j+N, i] * G[i+N, j] +
+              IG[i+N, i] * IG[j, j+N] + IG[j, i] * G[i+N, j+N] +
+              IG[i, i+N] * IG[j+N, j] + IG[j+N, i+N] * G[i, j] -
+              IG[i, i+N] * IG[j, j+N] - IG[j, i+N] * G[i, j+N]
+        )
+        m2z[i, j] = (
+            IG[i, i] * IG[j, j] + IG[j, i] * G[i, j] -
+            IG[i, i] * IG[j+N, j+N] - IG[j+N, i] * G[i+N, j] -
+            IG[i+N, i+N] * IG[j, j] - IG[j, i+N] * G[i, j+N] +
+            IG[i+N, i+N] * IG[j+N, j+N] + IG[j+N, i+N] * G[i+N, j+N]
+        )
+    end
+    push!(m.x, m2x)
+    push!(m.y, m2y)
+    push!(m.z, m2z)
 end
+
+
+
+struct PairingCorrelationMeasurement{
+        OT <: AbstractObservable,
+        T
+    } <: SpinOneHalfMeasurement
+    obs::OT
+    temp::Matrix{T}
+end
+function PairingCorrelationMeasurement(mc::DQMC, model)
+    T = eltype(mc.s.greens)
+    N = nsites(model)
+
+    obs = LightObservable(
+        LogBinner(zeros(T, N, N)),
+        "Equal time pairing correlation matrix (s-wave)",
+        "observables.jld",
+        "Equal time pairing correlation matrix"
+    )
+    temp = zeros(T, N, N)
+
+    PairingCorrelationMeasurement(obs, temp)
+end
+function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
+    G = greens(mc)
+    N = nsites(model)
+    push!(
+        m.obs,
+        G[1:N, 1:N] .* G[N+1:2N, N+1:2N] - G[1:N, N+1:2N] .* G[N+1:2N, 1:N]
+    )
+end
+
 
 
 
