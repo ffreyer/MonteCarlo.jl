@@ -32,6 +32,39 @@ with linear system size `L`. Additional allowed `kwargs` are:
     flv::Int = 1
 end
 
+function save_model!(
+        model::HubbardModelAttractive, filename;
+        force_overwrite = false, allow_rename = true
+    )
+    # Mess with filename if necessary and overwrites disabled
+    isfile(filename) && !force_overwrite && !allow_rename && throw(ErrorException(
+        "Cannot save because \"$filename\" already exists. Consider setting " *
+        "`allow_reanme = true` to adjust the filename or `force_overwrite = true`" *
+        " to overwrite the file."
+    ))
+    if isfile(filename) && !force_overwrite && allow_rename
+        while isfile(filename)
+            # those map to 0-9, A-Z, a-z
+            x = rand([(48:57)..., (65:90)..., (97:122)...])
+            s = string(Char(x))
+            filename = filename[1:end-4] * s * ".jld"
+        end
+    end
+
+    mode = isfile(filename) ? "r+" : "w"
+    jldopen(filename, mode) do f
+        write(f, "Model/type", typeof(model))
+        write(f, "Model/t", model.t)
+        write(f, "Model/mu", model.mu)
+        write(f, "Model/U", model.U)
+        write(f, "Model/flv", model.flv)
+        write(f, "Model/Lattice/type", typeof(model.l))
+        write(f, "Model/Lattice/L", model.l.L)
+        write(f, "Model/Lattice/nsites", length(model.l))
+    end
+    nothing
+end
+
 function choose_lattice(::Type{HubbardModelAttractive}, dims::Int, L::Int)
     if dims == 1
         return Chain(L)
