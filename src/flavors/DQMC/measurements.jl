@@ -17,7 +17,7 @@ function GreensMeasurement(mc::DQMC, model)
         LogBinner(zeros(eltype(mc.s.greens), size(mc.s.greens))),
         "Equal-times Green's function",
         "Observables.jld",
-        "Equal-times Green's function"
+        "G"
     )
     GreensMeasurement{typeof(o)}(o)
 end
@@ -68,7 +68,7 @@ abstract type SpinOneHalfMeasurement <: AbstractMeasurement end
 # Abuse prepare! to verify requirements
 function prepare!(m::SpinOneHalfMeasurement, mc::DQMC, model)
     model.flv != 2 && throw(AssertionError(
-        "A spin 1/2 measurement requires two (spin) flavors of fermions, but " *
+        "A spin 1/2 measurement ($(typeof(m))) requires two (spin) flavors of fermions, but " *
         "the given model has $(model.flv)."
     ))
 end
@@ -99,15 +99,15 @@ function MagnetizationMeasurement(mc::DQMC, model)
     # Magnetizations
     m1x = LightObservable(
         LogBinner([zero(T) for _ in 1:N]),
-        "Magnetization x", "Observables.jld", "Magnetization x"
+        "Magnetization x", "Observables.jld", "Mx"
     )
     m1y = LightObservable(
         LogBinner([zero(Ty) for _ in 1:N]),
-        "Magnetization y", "Observables.jld", "Magnetization y"
+        "Magnetization y", "Observables.jld", "My"
     )
     m1z = LightObservable(
         LogBinner([zero(T) for _ in 1:N]),
-        "Magnetization z", "Observables.jld", "Magnetization z"
+        "Magnetization z", "Observables.jld", "Mz"
     )
 
     MagnetizationMeasurement(m1x, m1y, m1z)
@@ -152,7 +152,7 @@ struct SpinDensityCorrelationMeasurement{
     y::OTy
     z::OTz
 end
-function MagnetizationMeasurement(mc::DQMC, model)
+function SpinDensityCorrelationMeasurement(mc::DQMC, model)
     N = nsites(model)
     T = eltype(mc.s.greens)
     Ty = T <: Complex ? T : Complex{T}
@@ -160,20 +160,20 @@ function MagnetizationMeasurement(mc::DQMC, model)
     # Spin density correlation
     m2x = LightObservable(
         LogBinner([zero(T) for _ in 1:N, __ in 1:N]),
-        "Spin Density Correlation x", "Observables.jld", "Spin Density Correlation x"
+        "Spin Density Correlation x", "Observables.jld", "sdc-x"
     )
     m2y = LightObservable(
         LogBinner([zero(Ty) for _ in 1:N, __ in 1:N]),
-        "Spin Density Correlation y", "Observables.jld", "Spin Density Correlation y"
+        "Spin Density Correlation y", "Observables.jld", "sdc-y"
     )
     m2z = LightObservable(
         LogBinner([zero(T) for _ in 1:N, __ in 1:N]),
-        "Spin Density Correlation z", "Observables.jld", "Spin Density Correlation z"
+        "Spin Density Correlation z", "Observables.jld", "sdc-z"
     )
 
-    MagnetizationMeasurement(x, y, z)
+    SpinDensityCorrelationMeasurement(m2x, m2y, m2z)
 end
-function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
+function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
     N = nsites(model)
     G = greens(mc)
     IG = I - G
@@ -231,7 +231,7 @@ function PairingCorrelationMeasurement(mc::DQMC, model)
         LogBinner(zeros(T, N, N)),
         "Equal time pairing correlation matrix (s-wave)",
         "observables.jld",
-        "Equal time pairing correlation matrix"
+        "etpc-s"
     )
     temp = zeros(T, N, N)
 
