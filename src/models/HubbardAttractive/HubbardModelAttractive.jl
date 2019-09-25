@@ -159,3 +159,23 @@ Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch fie
     lambda = acosh(exp(m.U * dtau/2))
     return lambda * sum(hsfield)
 end
+
+
+
+
+
+################################################################################
+
+
+# Abuse prepare! to verify requirements
+function prepare!(m::PairingCorrelationMeasurement, mc::DQMC, model::HubbardModelAttractive)
+    nothing
+end
+
+function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model::HubbardModelAttractive, i::Int64)
+    # Equal time pairing correlation
+    G = greens(mc)
+    N = nsites(model)
+
+    push!(m.obs, G[1:N, 1:N] .* G[1:N, 1:N])
+end
