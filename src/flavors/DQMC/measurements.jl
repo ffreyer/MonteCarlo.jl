@@ -1,3 +1,114 @@
+function default_measurements(mc::DQMC, model)
+    Dict(
+        :conf => ConfigurationMeasurement(mc, model),
+        :Greens => GreensMeasurement(mc, model),
+        :BosonEnergy => BosonEnergyMeasurement(mc, model)
+    )
+end
+
+
+
+################################################################################
+### Utilities
+################################################################################
+
+
+
+function greens(mc::DQMC, slice1, slice2)
+    G = greens(mc)
+end
+
+function greens(mc::DQMC, slice::Int64)
+    cur_slice = current_slice(mc)
+    N = nslices(mc)
+    cur_slice == slice && return greens(mc)
+
+    # use slice matrix multiplications if it's within safe_mult boundaries
+    d = let
+        x = slice - cur_slice
+        y = N - abs(x)
+        abs(x) < y ? x : sign(-x) * y
+    end
+    if abs(d) < div(mc.p.safe_mult, 2)
+        mc.s.greens_temp .= mc.s.greens
+        if d > 0 # forward in time
+            for s in cur_slice:cur_slice+d-1
+                multiply_slice_matrix_left!(
+                    mc, mc.model, mod1(s, N), mc.s.greens_temp
+                )
+                multiply_slice_matrix_inv_right!(
+                    mc, mc.model, mod1(s, N), mc.s.greens_temp
+                )
+            end
+        else # backward in time
+            for s in cur_slice-1:-1:cur_slice+d
+                multiply_slice_matrix_inv_left!(
+                    mc, mc.model, mod1(s, N), mc.s.greens_temp
+                )
+                multiply_slice_matrix_right!(
+                    mc, mc.model, mod1(s, N), mc.s.greens_temp
+                )
+            end
+        end
+        return _greens!(mc, mc.s.greens_temp)
+    end
+
+    # Otherwise we need to explicitly recalculate stuff
+    # We use these as udt "stack"
+    copyto!(mc.s.Ul, I)
+    mc.s.Dl .= 1
+    copyto!(mc.s.Tl, I)
+    copyto!(mc.s.Ur, I)
+    mc.s.Dr .= 1
+    copyto!(mc.s.Tr, I)
+
+    for i in 1:slice-1
+        multiply_slice_matrix_left!(mc, mc.model, i, mc.s.Ul)
+        if i % mc.p.safe_mult == 0
+            rmul!(mc.s.Ul, Diagonal(mc.s.Dl))
+            mc.s.U, mc.s.Dl, mc.s.T = udt(mc.s.Ul)
+            mul!(mc.s.tmp, mc.s.T, mc.s.Tl)
+            copyto!(mc.s.Ul, mc.s.U)
+            copyto!(mc.s.Tl, mc.s.tmp)
+        end
+    end
+    # Finalize product and UDT decomposition
+    rmul!(mc.s.Ul, Diagonal(mc.s.Dl))
+    mc.s.U, mc.s.Dl, mc.s.T = udt(mc.s.Ul)
+    mul!(mc.s.tmp, mc.s.T, mc.s.Tl)
+    copyto!(mc.s.Ul, mc.s.U)
+    copyto!(mc.s.Tl, mc.s.tmp)
+
+    for i in N:-1:slice
+        multiply_daggered_slice_matrix_left!(mc, mc.model, i, mc.s.Ur)
+        if i % mc.p.safe_mult == 0
+            rmul!(mc.s.Ur, Diagonal(mc.s.Dr))
+            mc.s.U, mc.s.Dr, mc.s.T = udt(mc.s.Ur)
+            mul!(mc.s.tmp, mc.s.T, mc.s.Tr)
+            copyto!(mc.s.Ur, mc.s.U)
+            copyto!(mc.s.Tr, mc.s.tmp)
+        end
+    end
+    rmul!(mc.s.Ur, Diagonal(mc.s.Dr))
+    mc.s.U, mc.s.Dr, mc.s.T = udt(mc.s.Ur)
+    mul!(mc.s.tmp, mc.s.T, mc.s.Tr)
+    copyto!(mc.s.Ur, mc.s.U)
+    copyto!(mc.s.Tr, mc.s.tmp)
+
+    # slightly modified calculate_greens()
+    mc.s.U, mc.s.D, mc.s.T = udt_inv_one_plus(
+        UDT(mc.s.Ul, mc.s.Dl, mc.s.Tl),
+        UDT(mc.s.Ur, mc.s.Dr, mc.s.Tr),
+        tmp = mc.s.U, tmp2 = mc.s.T, tmp3 = mc.s.tmp,
+        internaluse = true
+    )
+    mul!(mc.s.tmp, mc.s.U, Diagonal(mc.s.D))
+    mul!(mc.s.greens_temp, mc.s.tmp, mc.s.T)
+    return _greens!(mc, mc.s.greens_temp)
+end
+
+
+
 ################################################################################
 ### General DQMC Measurements
 ################################################################################

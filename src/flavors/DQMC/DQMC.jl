@@ -315,20 +315,18 @@ Internally, `mc.s.greens` is an effective Green's function. This method transfor
 this effective one to the actual Green's function by multiplying hopping matrix
 exponentials from left and right.
 """
-function greens(mc::DQMC_CBFalse)
+greens(mc::DQMC) = _greens(mc, mc.s.greens)
+_greens(mc::DQMC, G::Matrix) = _greens!(mc, copy(G))
+function _greens!(mc::DQMC_CBFalse, greens::Matrix)
     eThalfminus = mc.s.hopping_matrix_exp
     eThalfplus = mc.s.hopping_matrix_exp_inv
-
-    greens = copy(mc.s.greens)
     greens .= greens * eThalfminus
     greens .= eThalfplus * greens
     return greens
 end
-function greens(mc::DQMC_CBTrue)
+function _greens!(mc::DQMC_CBTrue, greens::Matrix)
     chkr_hop_half_minus = mc.s.chkr_hop_half
     chkr_hop_half_plus = mc.s.chkr_hop_half_inv
-
-    greens = copy(mc.s.greens)
 
     @inbounds @views begin
         for i in reverse(1:mc.s.n_groups)
