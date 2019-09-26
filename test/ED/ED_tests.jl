@@ -82,7 +82,7 @@ end
     @info "Running DQMC β=1.0, 100k + 100k sweeps, ≈1min"
     dqmc = DQMC(model, beta=1.0)
     # run!(dqmc, thermalization = 100_000, sweeps = 100_000, verbose=false)
-    run!(dqmc, thermalization = 100_000, sweeps = 100_000, verbose=false)
+    run!(dqmc, thermalization = 10_000, sweeps = 10_000, verbose=false)
     G_DQMC = mean(dqmc.measurements[:Greens].obs)
 
     @info "Running ED"
@@ -108,8 +108,8 @@ end
 
     @info "Running ZC β=1.0, 100k + 100k sweeps, ≈1min"
     dqmc = DQMC(model, beta=1.0, safe_mult=5)
-    @time run!(dqmc, thermalization = 100_000, sweeps = 100_000, verbose=false)
-    G_DQMC = mean(dqmc.obs["greens"])
+    @time run!(dqmc, thermalization = 10_000, sweeps = 10_000, verbose=false)
+    G_DQMC = mean(dqmc.measurements[:Greens].obs)
 
     @info "Running ED"
     H = HamiltonMatrix(model)
