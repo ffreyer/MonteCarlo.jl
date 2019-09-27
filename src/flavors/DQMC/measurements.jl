@@ -13,11 +13,46 @@ end
 ################################################################################
 
 
+"""
+    greens(mc::DQMC, slice1, slice2)
 
-function greens(mc::DQMC, slice1, slice2)
-    G = greens(mc)
+Computes the unequal time Green's function G(τ₁, τ₂) where τ₁ ≥ τ₂.
+"""
+function greens(mc::DQMC, slice1::Int64, slice2::Int64)
+    slice1 == slice2 && return greens(mc, slice1)
+    N = nslices(mc)
+
+    @assert slice1 > slice2
+
+    G = greens(mc, slice2+1)
+    copyto!(mc.s.Ul, I)
+    mc.s.Dl .= 1
+    copyto!(mc.s.Tl, I)
+
+    for i in slice2+1:slice1
+        multiply_slice_matrix_left!(mc, mc.model, i, mc.s.Ul)
+        if i % mc.p.safe_mult == 0
+            rmul!(mc.s.Ul, Diagonal(mc.s.Dl))
+            mc.s.U, mc.s.Dl, mc.s.T = udt(mc.s.Ul)
+            mul!(mc.s.tmp, mc.s.T, mc.s.Tl)
+            copyto!(mc.s.Ul, mc.s.U)
+            copyto!(mc.s.Tl, mc.s.tmp)
+        end
+    end
+    # Finalize product Ul Dl Tl G
+    rmul!(mc.s.Ul, Diagonal(mc.s.Dl))
+    rmul!(mc.s.Ul, mc.s.Tl)
+    lmul!(mc.s.Ul, G)
+    return G
 end
 
+
+"""
+    greens(mc::DQMC, slice)
+
+Computes the equal-time Greens function G(τ) = G(τ, τ). `slice = 1` represents
+τ = Δτ, `slice = nslices(mc)` τ = β = 0.
+"""
 function greens(mc::DQMC, slice::Int64)
     cur_slice = current_slice(mc)
     N = nslices(mc)
