@@ -147,12 +147,12 @@ end
     # det() vs unrolled: 206ns -> 2.28ns
     detratio = R[1, 1] * R[2, 2] - R[1, 2] * R[2, 1]
 
-    return detratio, ΔE_Boson, (R, Δ)
+    return detratio, 0.0, (R, Δ)
 end
 
 @inline @inbounds @fastmath function accept_local!(
         mc::DQMC, m::ZCModel, i::Int, slice::Int, conf::ZCConf,
-        delta, detratio, ΔE_boson::Float64
+        delta, detratio, _::Float64
     )
 
     N = nsites(m)
