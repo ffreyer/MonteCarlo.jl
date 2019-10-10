@@ -119,12 +119,12 @@ function HamiltonMatrix(model::MonteCarlo.ZCModel)
                     _sign1, state = annihilate(rstate, source, UP)
                     _sign2, state = create(state, target, UP)
                     if state != 0 && lstate == state
-                        E += _sign1 * _sign2 * t1
+                        E += _sign1 * _sign2 * t1x
                     end
                     _sign1, state = annihilate(rstate, source, DOWN)
                     _sign2, state = create(state, target, DOWN)
                     if state != 0 && lstate == state
-                        E += -1.0 * _sign1 * _sign2 * t1
+                        E += -1.0 * _sign1 * _sign2 * t1x
                     end
                 end
 
@@ -139,13 +139,13 @@ function HamiltonMatrix(model::MonteCarlo.ZCModel)
                     _sign1, state = annihilate(rstate, source, UP)
                     _sign2, state = create(state, target, UP)
                     if state != 0 && lstate == state
-                        E += AB_sign * 1im * _sign1 * _sign2 * t1
+                        E += AB_sign * 1im * _sign1 * _sign2 * t1y
                     end
 
                     _sign1, state = annihilate(rstate, source, DOWN)
                     _sign2, state = create(state, target, DOWN)
                     if state != 0 && lstate == state
-                        E += -1.0 * AB_sign * 1im * _sign1 * _sign2 * t1
+                        E += -1.0 * AB_sign * 1im * _sign1 * _sign2 * t1y
                     end
                 end
 
@@ -160,13 +160,13 @@ function HamiltonMatrix(model::MonteCarlo.ZCModel)
                     _sign1, state = annihilate(rstate, source, UP)
                     _sign2, state = create(state, target, UP)
                     if state != 0 && lstate == state
-                        E += AB_sign * _sign1 * _sign2 * t1
+                        E += AB_sign * _sign1 * _sign2 * t1z
                     end
 
                     _sign1, state = annihilate(rstate, source, DOWN)
                     _sign2, state = create(state, target, DOWN)
                     if state != 0 && lstate == state
-                        E += -1.0 * AB_sign * _sign1 * _sign2 * t1
+                        E += -1.0 * AB_sign * _sign1 * _sign2 * t1z
                     end
                 end
 
