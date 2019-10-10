@@ -15,7 +15,7 @@ include("lattices/abstract.jl")
 
 include("helpers.jl")
 include("Measurements.jl")
-export measurements, observables, save_measurements!, load_measurements
+export measurements, observables
 
 include("lattices/square.jl")
 include("lattices/chain.jl")
@@ -31,6 +31,7 @@ include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
 include("models/ZCTriangular/ZCmodel.jl")
 
+include("FileIO.jl")
 include("../test/testfunctions.jl")
 
 export reset!

@@ -339,40 +339,49 @@ function _greens!(mc::DQMC_CBTrue, greens::Matrix)
     return greens
 end
 
+
+#     save_mc(filename, mc, entryname)
+#
+# Saves (minimal) information necessary to reconstruct a given `mc::DQMC` to a
+# JLD-file `filename` under group `entryname`.
+#
+# When saving a simulation the default `entryname` is `MC`
+function save_mc(filename::String, mc::DQMC, entryname::String="MC")
+    mode = isfile(filename) ? "r+" : "w"
+    jldopen(filename, mode) do f
+        write(f, entryname * "/VERSION", 1)
+        write(f, entryname * "/type", typeof(mc))
+        write(f, entryname * "/parameters", mc.p)
+        write(f, entryname * "/conf", mc.conf)
+        # write(f, entryname * "/RNG", Random.GLOBAL_RNG)
+    end
+    save_measurements(
+        filename, mc, entryname * "/Measurements",
+        force_overwrite=true, allow_rename=false
+    )
+    save_model(filename, mc.model, entryname * "/Model")
+    nothing
+end
+
+#     load_mc(data, ::Type{<: DQMC})
+#
+# Loads a DQMC from a given `data` dictionary produced by `JLD.load(filename)`.
+function load_mc(data::Dict, ::Type{T}) where T <: DQMC
+    @assert data["VERSION"] == 1
+
+    mc = data["type"]()
+    mc.p = data["parameters"]
+    mc.conf = data["conf"]
+    mc.model = load_model(data["Model"], data["Model"]["type"])
+
+    measurements = load_measurements(data["Measurements"])
+    mc.thermalization_measurements = measurements[:TH]
+    mc.measurements = measurements[:ME]
+    mc.s = MonteCarlo.DQMCStack{geltype(mc), heltype(mc)}()
+    mc
+end
+
+
 include("DQMC_mandatory.jl")
 include("DQMC_optional.jl")
 include("measurements.jl")
-
-
-function save!(mc::DQMC, filename; force_overwrite = false, allow_rename = true)
-    # Mess with filename if necessary and overwrites disabled
-    isfile(filename) && !force_overwrite && !allow_rename && throw(ErrorException(
-        "Cannot save because \"$filename\" already exists. Consider setting " *
-        "`allow_reanme = true` to adjust the filename or `force_overwrite = true`" *
-        " to overwrite the file."
-    ))
-    if isfile(filename) && !force_overwrite && allow_rename
-        while isfile(filename)
-            # those map to 0-9, A-Z, a-z
-            x = rand([(48:57)..., (65:90)..., (97:122)...])
-            s = string(Char(x))
-            filename = filename[1:end-4] * s * ".jld"
-        end
-    end
-
-    # DQMC
-    # save(filename, "DQMC/type", typeof(mc))
-    # save(filename, "DQMC/parameters", mc.p)
-    # save(filename, "DQMC/conf", mc.conf)
-    mode = isfile(filename) ? "r+" : "w"
-    jldopen(filename, mode) do f
-        write(f, "DQMC/type", typeof(mc))
-        write(f, "DQMC/parameters", mc.p)
-        write(f, "DQMC/conf", mc.conf)
-    end
-    # Model
-    save_model!(mc.model, filename, force_overwrite = true, allow_rename = false)
-    # Measurements
-    save_measurements!(mc, filename, force_overwrite = true, allow_rename = false)
-    nothing
-end

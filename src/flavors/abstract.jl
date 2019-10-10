@@ -20,10 +20,25 @@ Run the Monte Carlo Simulation.
 run!(mc::MonteCarloFlavor) = error("MonteCarloFlavor $(typeof(mc)) doesn't implement `run!`!")
 
 
+
+
+
+
+# general functions
 """
     reset!(mc::MonteCarloFlavor)
 
 Resets the Monte Carlo simulation `mc`.
 Previously set parameters will be retained.
 """
-reset!(mc::MonteCarloFlavor) = init!(mc) # convenience mapping
+function reset!(mc::MonteCarloFlavor)
+    th_meas = Dict{Symbol, AbstractMeasurement}([
+        k => typeof(v)(mc, mc.model) for (k, v) in mc.thermalization_measurements
+    ])
+
+    meas = Dict{Symbol, AbstractMeasurement}([
+        k => typeof(v)(mc, mc.model) for (k, v) in mc.measurements
+    ])
+
+    init!(mc, thermalization_measurements=th_meas, measurements=meas)
+end
