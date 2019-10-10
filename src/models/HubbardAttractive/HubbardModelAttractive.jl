@@ -127,7 +127,7 @@ end
     γ = exp(ΔE_boson) - 1
     detratio = (1 + γ * (1 - greens[i,i]))^2 # squared because of two spin sectors.
 
-    return detratio, ΔE_boson, γ
+    return detratio * exp(-ΔE_boson), ΔE_boson, γ
 end
 
 @inline function accept_local!(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, delta, detratio, ΔE_boson::Float64)
