@@ -37,7 +37,7 @@ import Base.show
 
 # implement `Model` interface
 @inline nsites(m::ZCModel) = length(m.l)
-
+hoppingeltype(::Type{DQMC}, m::ZCModel) = ComplexF64
 
 # implement `DQMC` interface: mandatory
 @inline Base.rand(::Type{DQMC}, m::ZCModel, nslices::Int) = rand(ZCDistribution, nsites(m), nslices)

@@ -162,7 +162,7 @@ function init_checkerboard_matrices(mc::DQMC, m::Model)
     l = m.l
     flv = m.flv
     H = heltype(mc)
-    N = nsites(l)
+    N = nsites(m)
     dtau = mc.p.delta_tau
     mu = m.mu
 
