@@ -118,8 +118,8 @@ This is a performance critical method.
     dtau = mc.p.delta_tau
     # TODO optimize
     # compute this only once
-    lambda = acosh(exp(m.U * dtau/2))
-    result .= spdiagm(0 => [
+    lambda = acosh(exp(0.5m.U * dtau))
+    result .= Diagonal([
         (exp.(sign(power) * lambda * conf[:,slice]))...,
         (exp.(-sign(power) * lambda * conf[:,slice]))...
     ])
