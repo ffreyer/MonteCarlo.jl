@@ -22,31 +22,31 @@ function SuperconductivityMeasurement(mc::DQMC, model)
     N = nsites(model)
 
     s_wave      = LightObservable(
-        LogBinner(zeros(T, N, N)),
+        LogBinner(zeros(T, N, N), capacity=1_000_000),
         "s-wave equal time pairing correlation", "Observables.jld", "etpc-s"
     )
     ext_s_wave      = LightObservable(
-        LogBinner(zeros(T, N, N)),
+        LogBinner(zeros(T, N, N), capacity=1_000_000),
         "extended s-wave equal time pairing correlation", "Observables.jld", "etpc-se"
     )
     dxy_wave    = LightObservable(
-        LogBinner(zeros(T, N, N)),
+        LogBinner(zeros(T, N, N), capacity=1_000_000),
         "d_xy-wave equal time pairing correlation", "Observables.jld", "etpc-dxy"
     )
     dx2_y2_wave = LightObservable(
-        LogBinner(zeros(T, N, N)),
+        LogBinner(zeros(T, N, N), capacity=1_000_000),
         "d_{x²-y²}-wave equal time pairing correlation", "Observables.jld", "etpc-dx2y2"
     )
     f_wave      = LightObservable(
-        LogBinner(zeros(T, N, N)),
+        LogBinner(zeros(T, N, N), capacity=1_000_000),
         "f-wave equal time pairing correlation", "Observables.jld", "etpc-f"
     )
     py_wave     = LightObservable(
-        LogBinner(zeros(T, N, N)),
+        LogBinner(zeros(T, N, N), capacity=1_000_000),
         "p_y-wave equal time pairing correlation", "Observables.jld", "etpc-py"
     )
     px_wave     = LightObservable(
-        LogBinner(zeros(T, N, N)),
+        LogBinner(zeros(T, N, N), capacity=1_000_000),
         "p_x-wave equal time pairing correlation", "Observables.jld", "etpc-px"
     )
 
