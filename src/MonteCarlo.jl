@@ -30,6 +30,7 @@ include("flavors/DQMC/DQMC.jl")
 include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
 include("models/ZCTriangular/ZCmodel.jl")
+include("models/ZCTransformed/ZCTransformedModel.jl")
 
 include("FileIO.jl")
 include("../test/testfunctions.jl")

@@ -93,7 +93,9 @@ end
 
 function HamiltonMatrix(model::MonteCarlo.ZCModel)
     lattice = model.l
-    t1 = model.t1
+    t1x = model.t1x
+    t1y = model.t1y
+    t1z = model.t1z
     t2 = model.t2
     tperp = model.tperp
     U = model.U
@@ -208,6 +210,135 @@ function HamiltonMatrix(model::MonteCarlo.ZCModel)
                 down_occ = rstate[2, p]
                 if lstate == rstate
                     E += U * (up_occ - 0.5) * (down_occ - 0.5)
+                end
+            end
+
+            H[i, j] = E
+        end
+    end
+    H
+end
+
+
+function HamiltonMatrix(model::MonteCarlo.ZCTModel)
+    lattice = model.l
+    t1x = model.t1x
+    t1y = model.t1y
+    t1z = model.t1z
+    t2 = model.t2
+    # tperp = model.tperp
+    U = model.U
+
+    UP = 1
+    DOWN = 2
+
+    H = zeros(ComplexF64, 4^lattice.sites, 4^lattice.sites)
+
+    for i in 1:4^lattice.sites
+        lstate = state_from_integer(i-1, lattice.sites)
+        for j in 1:4^lattice.sites
+            rstate = state_from_integer(j-1, lattice.sites)
+
+            E = 0
+            # hopping (hermitian conjugate implied/included by lattice generation)
+            for source in 1:lattice.sites
+                # X (A <-> B equal sign)
+                for target in lattice.neighs[1:3:end, source]
+                    lattice.isAsite[source] == lattice.isAsite[target] && error(
+                        "$source and $target are on the same sublattice, σx, ED"
+                    )
+                    _sign1, state = annihilate(rstate, source, UP)
+                    _sign2, state = create(state, target, UP)
+                    if state != 0 && lstate == state
+                        E += _sign1 * _sign2 * t1x
+                    end
+                    _sign1, state = annihilate(rstate, source, DOWN)
+                    _sign2, state = create(state, target, DOWN)
+                    if state != 0 && lstate == state
+                        E += _sign1 * _sign2 * t1x
+                    end
+                end
+
+
+                # Y (A <-> B differ)
+                for target in lattice.neighs[2:3:end, source]
+                    lattice.isAsite[source] == lattice.isAsite[target] && error(
+                        "$source and $target are on the same sublattice, σy, ED"
+                    )
+                    AB_sign = lattice.isAsite[source] ? +1.0 : -1.0
+
+                    _sign1, state = annihilate(rstate, source, UP)
+                    _sign2, state = create(state, target, UP)
+                    if state != 0 && lstate == state
+                        E += AB_sign * 1im * _sign1 * _sign2 * t1y
+                    end
+
+                    _sign1, state = annihilate(rstate, source, DOWN)
+                    _sign2, state = create(state, target, DOWN)
+                    if state != 0 && lstate == state
+                        E += AB_sign * 1im * _sign1 * _sign2 * t1y
+                    end
+                end
+
+
+                # Z
+                for target in lattice.neighs[3:3:end, source]
+                    lattice.isAsite[source] != lattice.isAsite[target] && error(
+                        "$source and $target are on different sublattices, σz, ED"
+                    )
+                    AB_sign = lattice.isAsite[source] ? +1.0 : -1.0
+
+                    _sign1, state = annihilate(rstate, source, UP)
+                    _sign2, state = create(state, target, UP)
+                    if state != 0 && lstate == state
+                        E += AB_sign * _sign1 * _sign2 * t1z
+                    end
+
+                    _sign1, state = annihilate(rstate, source, DOWN)
+                    _sign2, state = create(state, target, DOWN)
+                    if state != 0 && lstate == state
+                        E += AB_sign * _sign1 * _sign2 * t1z
+                    end
+                end
+
+
+                for target in lattice.ext_neighs[:, source]
+                    lattice.isAsite[source] != lattice.isAsite[target] && error(
+                        "$source and $target are on different sublattices, t2, ED"
+                    )
+                    _sign1, state = annihilate(rstate, source, UP)
+                    _sign2, state = create(state, target, UP)
+                    if state != 0 && lstate == state
+                        E += _sign1 * _sign2 * t2
+                    end
+
+                    _sign1, state = annihilate(rstate, source, DOWN)
+                    _sign2, state = create(state, target, DOWN)
+                    if state != 0 && lstate == state
+                        E += _sign1 * _sign2 * t2
+                    end
+
+                end
+
+                # _sign1, state = annihilate(rstate, source, DOWN)
+                # _sign2, state = create(state, source, UP)
+                # if state != 0 && lstate == state
+                #     E += _sign1 * _sign2 * tperp
+                # end
+                # # h.c
+                # _sign1, state = create(rstate, source, DOWN)
+                # _sign2, state = annihilate(state, source, UP)
+                # if state != 0 && lstate == state
+                #     E += _sign1 * _sign2 * tperp
+                # end
+            end
+
+            # # U, μ terms
+            for p in 1:4
+                up_occ = rstate[1, p]
+                down_occ = rstate[2, p]
+                if lstate == rstate
+                    E -= U * (up_occ - 0.5) * (down_occ - 0.5)
                 end
             end
 

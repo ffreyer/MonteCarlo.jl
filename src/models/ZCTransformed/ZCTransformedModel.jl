@@ -1,7 +1,4 @@
-const ZCConf = Array{Int8, 2}
-const ZCDistribution = Int8[-1,1]
-
-@with_kw_noshow struct ZCModel <: Model
+@with_kw_noshow struct ZCTModel <: Model
     L::Int
 
     # user optional
@@ -13,7 +10,8 @@ const ZCDistribution = Int8[-1,1]
     t1y::Float64 = t1
     t1z::Float64 = t1
     t2::Float64 = 1.0
-    tperp::Float64 = 1.0
+    tperp::Float64 = 0.0
+    @assert tperp == 0.0 "tperp not implemented yet"
     mu::Float64 = 0.0
     @assert mu == 0.0 "mu is only a compatability hack"
 
@@ -24,28 +22,28 @@ const ZCDistribution = Int8[-1,1]
 end
 
 
-ZCModel(params::Dict{Symbol, T}) where T = ZCModel(; params...)
-ZCModel(params::NamedTuple) = ZCModel(; params...)
+ZCTModel(params::Dict{Symbol, T}) where T = ZCTModel(; params...)
+ZCTModel(params::NamedTuple) = ZCTModel(; params...)
 
 # cosmetics
 import Base.summary
 import Base.show
-# Base.summary(model::ZCModel) = "$(model.dims)D attractive Hubbard model"
-# Base.show(io::IO, model::ZCModel) = print(io, "$(model.dims)D attractive Hubbard model, L=$(model.L) ($(length(model.l)) sites)")
-# Base.show(io::IO, m::MIME"text/plain", model::ZCModel) = print(io, model)
+# Base.summary(model::ZCTModel) = "$(model.dims)D attractive Hubbard model"
+# Base.show(io::IO, model::ZCTModel) = print(io, "$(model.dims)D attractive Hubbard model, L=$(model.L) ($(length(model.l)) sites)")
+# Base.show(io::IO, m::MIME"text/plain", model::ZCTModel) = print(io, model)
 
 
 
 
 # implement `Model` interface
-@inline nsites(m::ZCModel) = length(m.l)
-hoppingeltype(::Type{DQMC}, m::ZCModel) = ComplexF64
+@inline nsites(m::ZCTModel) = length(m.l)
+hoppingeltype(::Type{DQMC}, m::ZCTModel) = ComplexF64
 
 # implement `DQMC` interface: mandatory
-@inline Base.rand(::Type{DQMC}, m::ZCModel, nslices::Int) = rand(ZCDistribution, nsites(m), nslices)
+@inline Base.rand(::Type{DQMC}, m::ZCTModel, nslices::Int) = rand(ZCDistribution, nsites(m), nslices)
 
 
-function hopping_matrix(mc::DQMC, m::ZCModel)
+function hopping_matrix(mc::DQMC, m::ZCTModel)
     # 2N for spin flip
     N = length(m.l)
     l = m.l
@@ -53,8 +51,9 @@ function hopping_matrix(mc::DQMC, m::ZCModel)
 
     for src in 1:N
         # t_perp
-        T[src, src + N] += m.tperp
-        T[src + N, src] += m.tperp
+        # c_{i ↑}^† c_{i, ↓}^† + c_{i, ↓} C_{i, ↑}
+        # T[src, src + N] += m.tperp
+        # T[src + N, src] += m.tperp
 
         # t'
         for trg in l.ext_neighs[:, src]
@@ -64,7 +63,7 @@ function hopping_matrix(mc::DQMC, m::ZCModel)
             # up-up block
             T[trg, src] += m.t2
             # down down block
-            T[trg + N, src + N] += -m.t2
+            T[trg + N, src + N] += m.t2
         end
 
         # σ_x
@@ -73,7 +72,7 @@ function hopping_matrix(mc::DQMC, m::ZCModel)
                 "$src and $trg are on the same sublattice, σx"
             )
             T[trg, src] += m.t1x
-            T[trg + N, src + N] += -m.t1x
+            T[trg + N, src + N] += m.t1x
         end
 
         # σ_y
@@ -83,10 +82,10 @@ function hopping_matrix(mc::DQMC, m::ZCModel)
             )
             if l.isAsite[src]
                 T[trg, src] += m.t1y * 1im
-                T[trg + N, src + N] += -m.t1y * 1im
+                T[trg + N, src + N] += m.t1y * 1im
             else
                 T[trg, src] += m.t1y * -1im
-                T[trg + N, src + N] += -m.t1y * -1im
+                T[trg + N, src + N] += m.t1y * -1im
             end
         end
 
@@ -97,10 +96,10 @@ function hopping_matrix(mc::DQMC, m::ZCModel)
             )
             if l.isAsite[src]
                 T[trg, src] += m.t1z
-                T[trg + N, src + N] += -m.t1z
+                T[trg + N, src + N] += m.t1z
             else
                 T[trg, src] += -m.t1z
-                T[trg + N, src + N] += m.t1z
+                T[trg + N, src + N] += -m.t1z
             end
         end
     end
@@ -115,7 +114,7 @@ and store it in `result::Matrix`.
 
 This is a performance critical method.
 """
-@inline function interaction_matrix_exp!(mc::DQMC, m::ZCModel,
+@inline function interaction_matrix_exp!(mc::DQMC, m::ZCTModel,
             result::Matrix, conf::ZCConf, slice::Int, power::Float64=1.)
     dtau = mc.p.delta_tau
     # TODO optimize
@@ -123,14 +122,14 @@ This is a performance critical method.
     lambda = acosh(exp(0.5m.U * dtau))
     result .= Diagonal([
         (exp.(sign(power) * lambda * conf[:,slice]))...,
-        (exp.(-sign(power) * lambda * conf[:,slice]))...
+        (exp.(sign(power) * lambda * conf[:,slice]))...
     ])
     nothing
 end
 
 
 @inline @fastmath @inbounds function propose_local(
-        mc::DQMC, m::ZCModel, i::Int, slice::Int, conf::ZCConf
+        mc::DQMC, m::ZCTModel, i::Int, slice::Int, conf::ZCConf
     )
 
     N = nsites(m)
@@ -149,11 +148,11 @@ end
     # det() vs unrolled: 206ns -> 2.28ns
     detratio = R[1, 1] * R[2, 2] - R[1, 2] * R[2, 1]
 
-    return detratio, 0.0, (R, Δ)
+    return detratio, ΔE_Boson, (R, Δ)
 end
 
 @inline @inbounds @fastmath function accept_local!(
-        mc::DQMC, m::ZCModel, i::Int, slice::Int, conf::ZCConf,
+        mc::DQMC, m::ZCTModel, i::Int, slice::Int, conf::ZCConf,
         delta, detratio, _::Float64
     )
 
@@ -190,7 +189,7 @@ end
 
 
 
-@inline function energy_boson(mc::DQMC, m::ZCModel, hsfield::ZCConf)
+@inline function energy_boson(mc::DQMC, m::ZCTModel, hsfield::ZCConf)
     dtau = mc.p.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
     return lambda * sum(hsfield)

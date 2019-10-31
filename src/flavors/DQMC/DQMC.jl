@@ -388,7 +388,7 @@ function sweep_spatial(mc::DQMC)
                 real(detratio)
             )
         end
-        p = real(detratio)
+        p = real(exp(-ΔE_boson) * detratio)
 
         # Metropolis
         if p > 1 || rand() < p
