@@ -334,7 +334,7 @@ function run!(
 
     end_time = now()
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
-    verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
+    verbose && @printf("Duration: %.2f minutes\n", (end_time - start_time).value/1000. /60.)
 
     return true
 end
