@@ -125,7 +125,7 @@ end
     end
 end
 
-
+exit()
 @testset "Zhong Chao Model transformed (ED)" begin
     model = MonteCarlo.ZCTModel(
         L = 2,

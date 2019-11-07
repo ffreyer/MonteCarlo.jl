@@ -177,7 +177,7 @@ end
 #     # det() vs unrolled: 206ns -> 2.28ns
 #     detratio = R[1, 1] * R[2, 2] - R[1, 2] * R[2, 1]
 #
-#     return detratio, ΔE_Boson, (R, Δ)
+#     return detratio*exp(-ΔE_boson), ΔE_Boson, (R, Δ)
 # end
 #
 # @inline @inbounds @fastmath function accept_local!(
