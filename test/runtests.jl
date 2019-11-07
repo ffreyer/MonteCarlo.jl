@@ -1,12 +1,12 @@
 using MonteCarlo, MonteCarloObservable
 using Test
-using Random, Dates
+using LinearAlgebra, Random, Dates
 
 @testset "All Tests" begin
     @testset "Lattices" begin
         include("lattices.jl")
     end
-
+    
     @testset "Models" begin
         include("modeltests_IsingModel.jl")
         include("modeltests_HubbardModelAttractive.jl")

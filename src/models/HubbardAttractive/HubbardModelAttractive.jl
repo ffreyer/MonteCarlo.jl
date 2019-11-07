@@ -162,21 +162,8 @@ Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch fie
 end
 
 
-
-
-
-################################################################################
-
-
-# Abuse prepare! to verify requirements
-function prepare!(m::PairingCorrelationMeasurement, mc::DQMC, model::HubbardModelAttractive)
-    nothing
-end
-
-function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model::HubbardModelAttractive, i::Int64)
-    # Equal time pairing correlation
+function greens(mc::DQMC, model::HubbardModelAttractive)
     G = greens(mc)
-    N = nsites(model)
-
-    push!(m.obs, G[1:N, 1:N] .* G[1:N, 1:N])
+    vcat(hcat(G, zeros(size(G))), hcat(zeros(size(G)), G))
 end
+prepare!(m::SpinOneHalfMeasurement, mc::DQMC, model::HubbardModelAttractive) = nothing

@@ -92,7 +92,7 @@ end
     )
     @test state == false
     ts = deepcopy(timeseries(mc.measurements[:conf].obs))
-    @assert length(ts) > 1
+    @test length(ts) > 1
 
     mc, state = resume!("resumable_testfile.jld", verbose=false)
     @test state == true
