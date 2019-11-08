@@ -359,15 +359,14 @@ function save_measurements(
         end
     end
 
-    !isempty(entryname) && !endswith(entryname, "/") && (entryname *= "/")
     mode = isfile(filename) ? "r+" : "w"
     file = jldopen(filename, mode)
-    save_measurements(filename, mc, entryname)
+    save_measurements(file, mc, entryname)
     close(file)
+    filename
 end
-function save_measurements(
-        file::JldFile, mc::MonteCarloFlavor, entryname::String=""
-    )
+function save_measurements(file::JLD.JldFile, mc::MonteCarloFlavor, entryname::String="")
+    endswith(entryname, "/") || (entryname *= "/")
     write(file, entryname * "VERSION", 1)
     measurement_dict = measurements(mc)
     for (k0, v0) in measurement_dict # :TH or :ME

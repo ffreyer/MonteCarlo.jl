@@ -82,6 +82,13 @@ function resume!(filename; kwargs...)
 end
 
 
+function save_mc(filename::String, mc::MonteCarloFlavor, entryname::String="MC")
+    mode = isfile(filename) ? "r+" : "w"
+    file = jldopen(filename, mode)
+    save_mc(file, mc, entryname)
+    close(file)
+    nothing
+end
 load_mc(data) = load_mc(data["MC"], data["MC"]["type"])
 
 
@@ -100,7 +107,7 @@ function save_model(filename::String, model, entryname::String)
     close(file)
     nothing
 end
-function save_model(file::IOStream, model, entryname::String)
+function save_model(file::JLD.JldFile, model, entryname::String)
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/type", typeof(model))
     write(file, entryname * "/data", model)
@@ -132,7 +139,7 @@ function save_lattice(filename::String, lattice::AbstractLattice, entryname::Str
     close(file)
     nothing
 end
-function save_lattice(file::IOStream, lattice::AbstractLattice, entryname::String)
+function save_lattice(file::JLD.JldFile, lattice::AbstractLattice, entryname::String)
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/type", typeof(lattice))
     write(file, entryname * "/data", lattice)
@@ -161,11 +168,11 @@ function save_rng(
     )
     mode = isfile(filename) ? "r+" : "w"
     file = jldopen(filename, mode)
-    save_rng(file, rng, entryname)
+    save_rng(file, rng=rng, entryname=entryname)
     close(file)
 end
 function save_rng(
-        file::IOStream;
+        file::JLD.JldFile;
         rng::MersenneTwister = Random.GLOBAL_RNG,
         entryname::String="RNG"
     )

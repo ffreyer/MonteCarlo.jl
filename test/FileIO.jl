@@ -37,6 +37,11 @@ end
     t = time() - t
     MonteCarlo.save("testfile.jld", mc)
     x = MonteCarlo.load("testfile.jld")
+    rm("testfile.jld")
+
+    # Repeat these tests once with x being replayed rather than loaded
+    replay_done = false
+    @label all_checks
 
     for f in fieldnames(typeof(mc.p))
         @test getfield(mc.p, f) == getfield(x.p, f)
@@ -74,7 +79,14 @@ end
             end
         end
     end
-    rm("testfile.jld")
+
+    # Check everything again with x being a replayed simulation
+    if !replay_done
+        replay!(x)
+        replay_done = true
+        @goto all_checks
+    end
+
 
     # Test resume
     model = HubbardModelAttractive(dims=2, L=2, t = 1.7, U = 5.5)
@@ -92,7 +104,7 @@ end
     )
     @test state == false
     ts = deepcopy(timeseries(mc.measurements[:conf].obs))
-    @test length(ts) > 1
+    @assert length(ts) > 1
 
     mc, state = resume!("resumable_testfile.jld", verbose=false)
     @test state == true

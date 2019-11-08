@@ -36,7 +36,7 @@ include("FileIO.jl")
 include("../test/testfunctions.jl")
 
 export reset!
-export run!, resume!
+export run!, resume!, replay!
 export IsingModel
 export HubbardModelAttractive
 export MC
