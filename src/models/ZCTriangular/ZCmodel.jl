@@ -196,4 +196,38 @@ end
     return lambda * sum(hsfield)
 end
 
+#     save_model(filename, model, entryname)
+#
+# Save (minimal) information necessary to reconstruct the given `model` in a
+# jld-file `filename` under group `entryname`.
+#
+# By default the full model object is saved. When saving a simulation, the
+# entryname defaults to `MC/Model`.
+function save_model(file::JLD.JldFile, model::ZCModel, entryname::String)
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(model))
+    write(file, entryname * "/data", Dict{Symbol, Any}(
+        :L => model.L,
+        :U => model.U,
+        :t1 => model.t1,
+        :t2 => model.t2,
+        :tperp => model.tperp
+    ))
+    nothing
+end
+
+#     load_model(data, ::Type{Model})
+#
+# Loads a model from a given `data` dictionary produced by `JLD.load(filename)`.
+# The second argument can be used for dispatch between different models.
+function load_model(data, ::ZCModel)
+    if data["VERSION"] == 0
+        return data["data"]
+    elseif data["VERSION"] == 1
+        return ZCModel(data["data"])
+    else
+        error("VERSION not recognized ($(data["VERSION"]))")
+    end
+end
+
 include("measurements.jl")

@@ -192,7 +192,7 @@ end
         tperp = 1.0
     )
 
-    @info "Running DQMC β=1.0, 10k + 50k sweeps, ≈1min"
+    @info "Running ZC DQMC β=1.0, 10k + 50k sweeps, ≈2min"
     dqmc = DQMC(model, beta=1.0, delta_tau = 0.025, measurements = Dict{Symbol, AbstractMeasurement}())
     push!(dqmc, :Greens => MonteCarlo.GreensMeasurement)
     push!(dqmc, :CDC => MonteCarlo.ChargeDensityCorrelationMeasurement)
