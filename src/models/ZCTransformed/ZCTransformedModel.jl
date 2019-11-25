@@ -82,10 +82,10 @@ function hopping_matrix(mc::DQMC, m::ZCTModel)
             )
             if l.isAsite[src]
                 T[trg, src] += m.t1y * 1im
-                T[trg + N, src + N] += m.t1y * 1im
+                T[trg + N, src + N] += -m.t1y * 1im
             else
                 T[trg, src] += m.t1y * -1im
-                T[trg + N, src + N] += m.t1y * -1im
+                T[trg + N, src + N] += -m.t1y * -1im
             end
         end
 
@@ -128,93 +128,93 @@ This is a performance critical method.
 end
 
 
-@inline function propose_local(mc::DQMC, m::ZCTModel, i::Int, slice::Int, conf::HubbardConf)
-    # see for example dos Santos (2002)
-    greens = mc.s.greens
-    dtau = mc.p.delta_tau
-    lambda = acosh(exp(m.U * dtau/2))
-
-    ΔE_boson = -2. * lambda * conf[i, slice]
-    γ = exp(ΔE_boson) - 1
-    detratio = (1 + γ * (1 - greens[i,i]))^2 # squared because of two spin sectors.
-
-    return detratio * exp(-ΔE_boson), ΔE_boson, γ
-end
-
-@inline function accept_local!(mc::DQMC, m::ZCTModel, i::Int, slice::Int, conf::HubbardConf, delta, detratio, ΔE_boson::Float64)
-    greens = mc.s.greens
-    γ = delta
-    N = nsites(m)
-
-    u = -greens[1:N, i]
-    u[i] += 1.
-    # TODO: OPT: speed check, maybe @views/@inbounds
-    temp = kron(u * 1. /(1 + γ * u[i]), transpose(γ * greens[i, 1:N]))
-    greens[1:N, 1:N] .-= temp
-    greens[N+1:2N, N+1:2N] .-= temp
-    conf[i, slice] *= -1
-    nothing
-end
+# @inline function propose_local(mc::DQMC, m::ZCTModel, i::Int, slice::Int, conf::HubbardConf)
+#     # see for example dos Santos (2002)
+#     greens = mc.s.greens
+#     dtau = mc.p.delta_tau
+#     lambda = acosh(exp(m.U * dtau/2))
 #
+#     ΔE_boson = -2. * lambda * conf[i, slice]
+#     γ = exp(ΔE_boson) - 1
+#     detratio = (1 + γ * (1 - greens[i,i]))^2 # squared because of two spin sectors.
 #
-# @inline @fastmath @inbounds function propose_local(
-#         mc::DQMC, m::ZCTModel, i::Int, slice::Int, conf::ZCConf
-#     )
-#
-#     N = nsites(m)
-#     G = mc.s.greens
-#     Δτ = mc.p.delta_tau
-#     # TODO optimize
-#     # compute this only once
-#     α = acosh(exp(0.5Δτ * m.U))
-#
-#     # TODO optimize
-#     # unroll matmult?
-#     ΔE_Boson = -2.0α * conf[i, slice]
-#     Δ = [exp(ΔE_Boson) - 1 0.0; 0.0 exp(ΔE_Boson) - 1]
-#     R = I + Δ * (I - G[i:N:end, i:N:end])
-#     # Calculate det of 2x2 Matrix
-#     # det() vs unrolled: 206ns -> 2.28ns
-#     detratio = R[1, 1] * R[2, 2] - R[1, 2] * R[2, 1]
-#
-#     return detratio*exp(-ΔE_boson), ΔE_Boson, (R, Δ)
+#     return detratio * exp(-ΔE_boson), ΔE_boson, γ
 # end
 #
-# @inline @inbounds @fastmath function accept_local!(
-#         mc::DQMC, m::ZCTModel, i::Int, slice::Int, conf::ZCConf,
-#         delta, detratio, _::Float64
-#     )
-#
+# @inline function accept_local!(mc::DQMC, m::ZCTModel, i::Int, slice::Int, conf::HubbardConf, delta, detratio, ΔE_boson::Float64)
+#     greens = mc.s.greens
+#     γ = delta
 #     N = nsites(m)
-#     G = mc.s.greens
-#     R, Δ = delta
 #
-#     # TODO optimize
-#     # BLAS?
-#
-#     # inverting R in-place, using that R is 2x2
-#     # speed up: 470ns -> 2.6ns, see matrix_inverse.jl
-#     inv_div = 1.0 / detratio
-#     R[1, 2] = -R[1, 2] * inv_div
-#     R[2, 1] = -R[2, 1] * inv_div
-#     x = R[1, 1]
-#     R[1, 1] = R[2, 2] * inv_div
-#     R[2, 2] = x * inv_div
-#
-#     IG = -G[:, i:N:end]
-#     IG[i, 1] += 1.0
-#     IG[i+N, 2] += 1.0
-#
-#     R = R * Δ
-#     IG = IG * R
-#     # mc.s.greens_temp = IG * (R * Δ) * G[i:N:end, :]
-#     mul!(mc.s.greens_temp, IG, G[i:N:end, :])
-#     G .-= mc.s.greens_temp
-#
+#     u = -greens[1:N, i]
+#     u[i] += 1.
+#     # TODO: OPT: speed check, maybe @views/@inbounds
+#     temp = kron(u * 1. /(1 + γ * u[i]), transpose(γ * greens[i, 1:N]))
+#     greens[1:N, 1:N] .-= temp
+#     greens[N+1:2N, N+1:2N] .-= temp
 #     conf[i, slice] *= -1
-#
 #     nothing
 # end
+
+
+@inline @fastmath @inbounds function propose_local(
+        mc::DQMC, m::ZCTModel, i::Int, slice::Int, conf::ZCConf
+    )
+
+    N = nsites(m)
+    G = mc.s.greens
+    Δτ = mc.p.delta_tau
+    # TODO optimize
+    # compute this only once
+    α = acosh(exp(0.5Δτ * m.U))
+
+    # TODO optimize
+    # unroll matmult?
+    ΔE_Boson = -2.0α * conf[i, slice]
+    Δ = [exp(ΔE_Boson) - 1 0.0; 0.0 exp(ΔE_Boson) - 1]
+    R = I + Δ * (I - G[i:N:end, i:N:end])
+    # Calculate det of 2x2 Matrix
+    # det() vs unrolled: 206ns -> 2.28ns
+    detratio = R[1, 1] * R[2, 2] - R[1, 2] * R[2, 1]
+
+    return detratio*exp(-ΔE_Boson), ΔE_Boson, (R, Δ)
+end
+
+@inline @inbounds @fastmath function accept_local!(
+        mc::DQMC, m::ZCTModel, i::Int, slice::Int, conf::ZCConf,
+        delta, detratio, _::Float64
+    )
+
+    N = nsites(m)
+    G = mc.s.greens
+    R, Δ = delta
+
+    # TODO optimize
+    # BLAS?
+
+    # inverting R in-place, using that R is 2x2
+    # speed up: 470ns -> 2.6ns, see matrix_inverse.jl
+    inv_div = 1.0 / detratio
+    R[1, 2] = -R[1, 2] * inv_div
+    R[2, 1] = -R[2, 1] * inv_div
+    x = R[1, 1]
+    R[1, 1] = R[2, 2] * inv_div
+    R[2, 2] = x * inv_div
+
+    IG = -G[:, i:N:end]
+    IG[i, 1] += 1.0
+    IG[i+N, 2] += 1.0
+
+    R = R * Δ
+    IG = IG * R
+    # mc.s.greens_temp = IG * (R * Δ) * G[i:N:end, :]
+    mul!(mc.s.greens_temp, IG, G[i:N:end, :])
+    G .-= mc.s.greens_temp
+
+    conf[i, slice] *= -1
+
+    nothing
+end
 
 
 

@@ -204,15 +204,14 @@ end
 # By default the full model object is saved. When saving a simulation, the
 # entryname defaults to `MC/Model`.
 function save_model(file::JLD.JldFile, model::ZCModel, entryname::String)
+    @info "saving"
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(model))
-    write(file, entryname * "/data", Dict{Symbol, Any}(
-        :L => model.L,
-        :U => model.U,
-        :t1 => model.t1,
-        :t2 => model.t2,
-        :tperp => model.tperp
-    ))
+    write(file, entryname * "/data/L", model.L)
+    write(file, entryname * "/data/U", model.U)
+    write(file, entryname * "/data/t1", model.t1)
+    write(file, entryname * "/data/t2", model.t2)
+    write(file, entryname * "/data/tperp", model.tperp)
     nothing
 end
 
@@ -220,13 +219,20 @@ end
 #
 # Loads a model from a given `data` dictionary produced by `JLD.load(filename)`.
 # The second argument can be used for dispatch between different models.
-function load_model(data, ::ZCModel)
+function load_model(data, ::Type{ZCModel})
     if data["VERSION"] == 0
         return data["data"]
     elseif data["VERSION"] == 1
-        return ZCModel(data["data"])
+        return ZCModel(
+            L = data["data"]["L"],
+            U = data["data"]["U"],
+            t1 = data["data"]["t1"],
+            t2 = data["data"]["t2"],
+            tperp = data["data"]["tperp"]
+        )
     else
-        error("VERSION not recognized ($(data["VERSION"]))")
+        V = data["VERSION"]
+        error("VERSION not recognized ($V)")
     end
 end
 
