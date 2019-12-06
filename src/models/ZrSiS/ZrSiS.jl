@@ -1,107 +1,69 @@
-const ZCConf = Array{Int8, 2}
-const ZCDistribution = Int8[-1,1]
+const ZrSiSConf = Array{Int8, 2}
+const ZrSiSDistribution = Int8[-1,1]
 
-@with_kw_noshow struct ZCModel <: Model
+@with_kw_noshow struct ZrSiSModel <: Model
     L::Int
 
     # user optional
     # mu::Float64 = 0.0
     U::Float64 = 1.0
     @assert U >= 0. "U must be positive."
-    t1::Float64 = 1.0
-    t1x::Float64 = t1
-    t1y::ComplexF64 = t1
-    t1z::Float64 = t1
-    t2::Float64 = 1.0
+    t::Float64 = 1.0
+    delta::Float64 = 1.1
     tperp::Float64 = 1.0
     mu::Float64 = 0.0
     @assert mu == 0.0 "mu is only a compatability hack"
 
     # non-user fields
-    l::TriangularLattice = TriangularLattice(L)
+    l::SquareLattice = SquareLattice(L)
     neighs::Matrix{Int} = neighbors_lookup_table(l)
     flv::Int = 2
 end
 
 
-ZCModel(params::Dict{Symbol, T}) where T = ZCModel(; params...)
-ZCModel(params::NamedTuple) = ZCModel(; params...)
+ZrSiSModel(params::Dict{Symbol, T}) where T = ZrSiSModel(; params...)
+ZrSiSModel(params::NamedTuple) = ZrSiSModel(; params...)
 
 # cosmetics
 import Base.summary
 import Base.show
-# Base.summary(model::ZCModel) = "$(model.dims)D attractive Hubbard model"
-# Base.show(io::IO, model::ZCModel) = print(io, "$(model.dims)D attractive Hubbard model, L=$(model.L) ($(length(model.l)) sites)")
-# Base.show(io::IO, m::MIME"text/plain", model::ZCModel) = print(io, model)
+# Base.summary(model::ZrSiSModel) = "$(model.dims)D attractive Hubbard model"
+# Base.show(io::IO, model::ZrSiSModel) = print(io, "$(model.dims)D attractive Hubbard model, L=$(model.L) ($(length(model.l)) sites)")
+# Base.show(io::IO, m::MIME"text/plain", model::ZrSiSModel) = print(io, model)
 
 
 
 
 # implement `Model` interface
-@inline nsites(m::ZCModel) = length(m.l)
-hoppingeltype(::Type{DQMC}, m::ZCModel) = ComplexF64
+@inline nsites(m::ZrSiSModel) = 2length(m.l)
+hoppingeltype(::Type{DQMC}, m::ZrSiSModel) = Float64
 
 # implement `DQMC` interface: mandatory
-@inline Base.rand(::Type{DQMC}, m::ZCModel, nslices::Int) = rand(ZCDistribution, nsites(m), nslices)
+@inline Base.rand(::Type{DQMC}, m::ZrSiSModel, nslices::Int) = rand(ZrSiSDistribution, nsites(m), nslices)
 
 
-function hopping_matrix(mc::DQMC, m::ZCModel)
+function hopping_matrix(mc::DQMC, m::ZrSiSModel)
     # 2N for spin flip
     N = length(m.l)
     l = m.l
-    T = zeros(ComplexF64, 2N, 2N)
+    T = zeros(ComplexF64, 4N, 4N)
 
     for src in 1:N
-        # t_perp
-        T[src, src + N] += m.tperp
-        T[src + N, src] += m.tperp
+        for trg in l.neighs[:, src]
+            # A up
+            T[trg, src] += m.t
+            # A down
+            T[trg+N, src+N] += m.t
+            # B up
+            T[trg+2N, src+2N] -= m.t
+            # B down
+            T[trg+3N, src+3N] -= m.t
 
-        # t'
-        for trg in l.ext_neighs[:, src]
-            l.isAsite[src] != l.isAsite[trg] && error(
-                "$src and $trg are on different sublattices, t2"
-            )
-            # up-up block
-            T[trg, src] += m.t2
-            # down down block
-            T[trg + N, src + N] += -m.t2
-        end
-
-        # σ_x
-        for trg in l.neighs[1:3:end, src]
-            l.isAsite[src] == l.isAsite[trg] && error(
-                "$src and $trg are on the same sublattice, σx"
-            )
-            T[trg, src] += m.t1x
-            T[trg + N, src + N] += -m.t1x
-        end
-
-        # σ_y
-        for trg in l.neighs[2:3:end, src]
-            l.isAsite[src] == l.isAsite[trg] && error(
-                "$src and $trg are on the same sublattice, σy"
-            )
-            if l.isAsite[src]
-                T[trg, src] += m.t1y * 1im
-                T[trg + N, src + N] += -m.t1y * 1im
-            else
-                T[trg, src] += m.t1y * -1im
-                T[trg + N, src + N] += -m.t1y * -1im
-            end
-        end
-
-        # σ_z
-        for trg in l.neighs[3:3:end, src]
-            l.isAsite[src] != l.isAsite[trg] && error(
-                "$src and $trg are on different sublattices, σz"
-            )
-            if l.isAsite[src]
-                T[trg, src] += m.t1z
-                T[trg + N, src + N] += -m.t1z
-            else
-                T[trg, src] += -m.t1z
-                T[trg + N, src + N] += m.t1z
-            end
+            # diagonal part
+            T[src, src] += m.delta
+            T[src+N, src+N] += m.delta
+            T[src+2N, src+2N] -= m.delta
+            T[src+3N, src+3N] -= m.delta
         end
     end
 
@@ -115,22 +77,30 @@ and store it in `result::Matrix`.
 
 This is a performance critical method.
 """
-@inline function interaction_matrix_exp!(mc::DQMC, m::ZCModel,
-            result::Matrix, conf::ZCConf, slice::Int, power::Float64=1.)
+@inline function interaction_matrix_exp!(mc::DQMC, m::ZrSiSModel,
+            result::Matrix, conf::ZrSiSConf, slice::Int, power::Float64=1.)
     dtau = mc.p.delta_tau
     # TODO optimize
     # compute this only once
     lambda = acosh(exp(0.5m.U * dtau))
+    # (n_A - 0.5)(n_B - 0.5)
+    # result .= Diagonal([
+    #     (exp.(sign(power) * lambda * conf[:,slice]))...,
+    #     (exp.(-sign(power) * lambda * conf[:,slice]))...
+    # ])
+    N = length(m.l)
     result .= Diagonal([
-        (exp.(sign(power) * lambda * conf[:,slice]))...,
-        (exp.(-sign(power) * lambda * conf[:,slice]))...
+        exp.(sign(power) * lambda * conf[1:N, slice])...,
+        exp.(-sign(power) * lambda * conf[N+1:end, slice])...,
+        exp.(-sign(power) * lambda * conf[1:N, slice])...,
+        exp.(sign(power) * lambda * conf[N+1:end, slice])...
     ])
     nothing
 end
 
 
 @inline @fastmath @inbounds function propose_local(
-        mc::DQMC, m::ZCModel, i::Int, slice::Int, conf::ZCConf
+        mc::DQMC, m::ZrSiSModel, i::Int, slice::Int, conf::ZrSiSConf
     )
 
     N = nsites(m)
@@ -153,7 +123,7 @@ end
 end
 
 @inline @inbounds @fastmath function accept_local!(
-        mc::DQMC, m::ZCModel, i::Int, slice::Int, conf::ZCConf,
+        mc::DQMC, m::ZrSiSModel, i::Int, slice::Int, conf::ZrSiSConf,
         delta, detratio, _::Float64
     )
 
@@ -190,7 +160,7 @@ end
 
 
 
-@inline function energy_boson(mc::DQMC, m::ZCModel, hsfield::ZCConf)
+@inline function energy_boson(mc::DQMC, m::ZrSiSModel, hsfield::ZrSiSConf)
     dtau = mc.p.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
     return lambda * sum(hsfield)
@@ -203,7 +173,7 @@ end
 #
 # By default the full model object is saved. When saving a simulation, the
 # entryname defaults to `MC/Model`.
-function save_model(file::JLD.JldFile, model::ZCModel, entryname::String)
+function save_model(file::JLD.JldFile, model::ZrSiSModel, entryname::String)
     @info "saving"
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(model))
@@ -219,11 +189,11 @@ end
 #
 # Loads a model from a given `data` dictionary produced by `JLD.load(filename)`.
 # The second argument can be used for dispatch between different models.
-function load_model(data, ::Type{ZCModel})
+function load_model(data, ::Type{ZrSiSModel})
     if data["VERSION"] == 0
         return data["data"]
     elseif data["VERSION"] == 1
-        return ZCModel(
+        return ZrSiSModel(
             L = data["data"]["L"],
             U = data["data"]["U"],
             t1 = data["data"]["t1"],
@@ -236,4 +206,4 @@ function load_model(data, ::Type{ZCModel})
     end
 end
 
-include("measurements.jl")
+# include("measurements.jl")
