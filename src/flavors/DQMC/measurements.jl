@@ -173,7 +173,16 @@ end
 function measure!(m::GreensMeasurement, mc::DQMC, model, i::Int64)
     push!(m.obs, greens(mc))
 end
-
+function save_measurement(file::JLD.JldFile, m::GreensMeasurement, entryname::String)
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(m))
+    write(file, entryname * "/obs", m.obs)
+    nothing
+end
+function load_measurement(data, ::Type{T}) where T <: GreensMeasurement
+    @assert data["VERSION"] == 1
+    data["type"](data["obs"])
+end
 
 
 """
@@ -193,6 +202,16 @@ function BosonEnergyMeasurement(mc::DQMC, model)
 end
 function measure!(m::BosonEnergyMeasurement, mc::DQMC, model, i::Int64)
     push!(m.obs, energy_boson(mc, model, conf(mc)))
+end
+function save_measurement(file::JLD.JldFile, m::BosonEnergyMeasurement, entryname::String)
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(m))
+    write(file, entryname * "/obs", m.obs)
+    nothing
+end
+function load_measurement(data, ::Type{T}) where T <: BosonEnergyMeasurement
+    @assert data["VERSION"] == 1
+    data["type"](data["obs"])
 end
 
 
@@ -258,6 +277,25 @@ function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::In
     end
     push!(m.obs, m.temp)
 end
+function save_measurement(
+        file::JLD.JldFile,
+        m::ChargeDensityCorrelationMeasurement,
+        entryname::String
+    )
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(m))
+    write(file, entryname * "/obs", m.obs)
+    write(file, entryname * "/temp_dim", size(m.temp))
+    write(file, entryname * "/temp_type", typeof(m.temp))
+    nothing
+end
+function load_measurement(
+        data, ::Type{T}
+    ) where T <: ChargeDensityCorrelationMeasurement
+
+    @assert data["VERSION"] == 1
+    data["type"](data["obs"], data["temp_type"](undef, data["temp_size"]...))
+end
 
 
 
@@ -318,6 +356,25 @@ function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
     push!(m.x, mx)
     push!(m.y, my)
     push!(m.z, mz)
+end
+function save_measurement(
+        file::JLD.JldFile,
+        m::MagnetizationMeasurement,
+        entryname::String
+    )
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(m))
+    write(file, entryname * "/obs_x", m.x)
+    write(file, entryname * "/obs_y", m.y)
+    write(file, entryname * "/obs_z", m.z)
+    nothing
+end
+function load_measurement(
+        data, ::Type{T}
+    ) where T <: MagnetizationMeasurement
+
+    @assert data["VERSION"] == 1
+    data["type"](data["obs_x"], data["obs_y"], data["obs_z"])
 end
 
 
@@ -399,6 +456,25 @@ function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int6
     push!(m.y, m2y)
     push!(m.z, m2z)
 end
+function save_measurement(
+        file::JLD.JldFile,
+        m::SpinDensityCorrelationMeasurement,
+        entryname::String
+    )
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(m))
+    write(file, entryname * "/obs_x", m.x)
+    write(file, entryname * "/obs_y", m.y)
+    write(file, entryname * "/obs_z", m.z)
+    nothing
+end
+function load_measurement(
+        data, ::Type{T}
+    ) where T <: SpinDensityCorrelationMeasurement
+
+    @assert data["VERSION"] == 1
+    data["type"](data["obs_x"], data["obs_y"], data["obs_z"])
+end
 
 
 
@@ -443,6 +519,30 @@ function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
     m.temp .= G[1:N, 1:N] .* G[N+1:2N, N+1:2N] - G[1:N, N+1:2N] .* G[N+1:2N, 1:N]
     push!(m.mat, m.temp)
     push!(m.uniform_fourier, sum(m.temp) / N)
+end
+function save_measurement(
+        file::JLD.JldFile,
+        m::PairingCorrelationMeasurement,
+        entryname::String
+    )
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(m))
+    write(file, entryname * "/mat_obs", m.mat)
+    write(file, entryname * "/num_obs", m.uniform_fourier)
+    write(file, entryname * "/temp_type", typeof(m.temp))
+    write(file, entryname * "/temp_size", size(m.temp))
+    nothing
+end
+function load_measurement(
+        data, ::Type{T}
+    ) where T <: PairingCorrelationMeasurement
+
+    @assert data["VERSION"] == 1
+    data["type"](
+        data["mat_obs"],
+        data["num_obs"],
+        data["temp_type"](undef, data["size"]...)
+    )
 end
 
 
