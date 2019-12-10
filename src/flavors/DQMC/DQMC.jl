@@ -631,7 +631,7 @@ function load_parameters(data::Dict, ::Type{T}) where T <: DQMCParameters
         global_rate = data["global_rate"],
         thermalization = data["thermalization"],
         sweeps = data["sweeps"],
-        all_chekcs = data["all_checks"],
+        all_checks = data["all_checks"],
         safe_mult = data["safe_mult"],
         delta_tau = data["delta_tau"],
         beta = data["beta"],
