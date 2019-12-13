@@ -14,8 +14,9 @@ const ZCDistribution = Int8[-1,1]
     t1z::Float64 = t1
     t2::Float64 = 1.0
     tperp::Float64 = 1.0
+    delta::Float64 = 0.0
     mu::Float64 = 0.0
-    @assert mu == 0.0 "mu is only a compatability hack"
+    #@assert mu == 0.0 "mu is only a compatability hack"
 
     # non-user fields
     l::TriangularLattice = TriangularLattice(L)
@@ -52,6 +53,26 @@ function hopping_matrix(mc::DQMC, m::ZCModel)
     T = zeros(ComplexF64, 2N, 2N)
 
     for src in 1:N
+        # mu
+        T[src, src] += m.mu
+        T[src+N, src+N] -= m.mu
+
+        # Δ
+        if l.isAsite[src]
+            T[src, src] += m.delta
+            T[src+N, src+N] -= m.delta
+        else
+            T[src, src] -= m.delta
+            T[src+N, src+N] += m.delta
+        end
+        # if l.isAsite[src]
+        #     T[src, src] += m.delta
+        #     T[src+N, src+N] += m.delta
+        # else
+        #     T[src, src] -= m.delta
+        #     T[src+N, src+N] -= m.delta
+        # end
+
         # t_perp
         T[src, src + N] += m.tperp
         T[src + N, src] += m.tperp

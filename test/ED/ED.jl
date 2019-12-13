@@ -101,6 +101,7 @@ function HamiltonMatrix(model::MonteCarlo.ZCModel)
     t2 = model.t2
     tperp = model.tperp
     U = model.U
+    mu = model.mu
 
     UP = 1
     DOWN = 2
@@ -212,6 +213,7 @@ function HamiltonMatrix(model::MonteCarlo.ZCModel)
                 down_occ = rstate[2, p]
                 if lstate == rstate
                     E += U * (up_occ - 0.5) * (down_occ - 0.5)
+                    E += mu * (up_occ - down_occ)
                 end
             end
 
