@@ -32,6 +32,7 @@ include("models/HubbardAttractive/HubbardModelAttractive.jl")
 include("models/ZCTriangular/ZCmodel.jl")
 include("models/ZCTransformed/ZCTransformedModel.jl")
 include("models/ZrSiS/ZrSiS.jl")
+include("models/TestModel/TestModel.jl")
 
 include("FileIO.jl")
 include("../test/testfunctions.jl")
@@ -40,6 +41,7 @@ export reset!
 export run!, resume!, replay!
 export IsingModel
 export HubbardModelAttractive
+export TestModel
 export MC
 export DQMC
 export greens
