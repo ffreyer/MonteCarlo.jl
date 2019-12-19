@@ -541,7 +541,7 @@ function load_measurement(
     data["type"](
         data["mat_obs"],
         data["num_obs"],
-        data["temp_type"](undef, data["size"]...)
+        data["temp_type"](undef, data["temp_size"]...)
     )
 end
 

@@ -49,7 +49,7 @@ end
 function HamiltonMatrix(model::HubbardModelAttractive)
     lattice = model.l
     t = model.t
-    U = model.U
+    U = -abs(model.U)
     mu = model.mu
 
     H = zeros(Float64, 4^lattice.sites, 4^lattice.sites)
@@ -100,7 +100,7 @@ function HamiltonMatrix(model::MonteCarlo.ZCModel)
     t1z = model.t1z
     t2 = model.t2
     tperp = model.tperp
-    U = model.U
+    U = abs(model.U)
     mu = model.mu
 
     UP = 1
@@ -200,8 +200,8 @@ function HamiltonMatrix(model::MonteCarlo.ZCModel)
                     E += _sign1 * _sign2 * tperp
                 end
                 # h.c
-                _sign1, state = create(rstate, source, DOWN)
-                _sign2, state = annihilate(state, source, UP)
+                _sign2, state = annihilate(rstate, source, UP) # NOTE
+                _sign1, state = create(state, source, DOWN) # NOTE
                 if state != 0 && lstate == state
                     E += _sign1 * _sign2 * tperp
                 end
@@ -604,7 +604,7 @@ function calculate_Greens_matrix(H, lattice; beta=1.0, N_substates=2)
             )
         end
     end
-    G
+    transpose(G)
 end
 
 
