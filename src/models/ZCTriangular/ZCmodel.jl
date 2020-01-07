@@ -227,13 +227,14 @@ end
 # entryname defaults to `MC/Model`.
 function save_model(file::JLD.JldFile, model::ZCModel, entryname::String)
     @info "saving"
-    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/VERSION", 2)
     write(file, entryname * "/type", typeof(model))
     write(file, entryname * "/data/L", model.L)
     write(file, entryname * "/data/U", model.U)
     write(file, entryname * "/data/t1", model.t1)
     write(file, entryname * "/data/t2", model.t2)
     write(file, entryname * "/data/tperp", model.tperp)
+    write(file, entryname * "/data/mu", model.mu)
     nothing
 end
 
@@ -244,13 +245,15 @@ end
 function load_model(data, ::Type{ZCModel})
     if data["VERSION"] == 0
         return data["data"]
-    elseif data["VERSION"] == 1
+    elseif data["VERSION"] in (1, 2)
+        data["VERSION"] == 1 && (@warn "mu not in saved data")
         return ZCModel(
             L = data["data"]["L"],
             U = data["data"]["U"],
             t1 = data["data"]["t1"],
             t2 = data["data"]["t2"],
-            tperp = data["data"]["tperp"]
+            tperp = data["data"]["tperp"],
+            mu = get(data["data"], "mu", 0.0)
         )
     else
         V = data["VERSION"]
