@@ -24,14 +24,14 @@ end
 
         TimerOutputs.enable_debug_timings(Main)
         x, y = 0.005, 0.005
-        MonteCarlo.test1(x, y)
-        MonteCarlo.test2(x, y)
+        test1(x, y)
+        test2(x, y)
         test3(x, y)
         test4(x, y)
         TimerOutputs.reset_timer!()
         for _ in 1:10
-            MonteCarlo.test1(x, y)
-            MonteCarlo.test2(x, y)
+            test1(x, y)
+            test2(x, y)
             test3(x, y)
             test4(x, y)
         end

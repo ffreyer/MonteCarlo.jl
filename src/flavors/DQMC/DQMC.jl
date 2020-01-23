@@ -39,8 +39,14 @@ function DQMCParameters(;global_moves::Bool = false,
                         kwargs...)
     nt = (;kwargs...)
     keys(nt) == (:beta,) && (nt = (;beta=nt.beta, delta_tau=0.1))
-    @assert length(nt) == 2 "Invalid keyword arguments to DQMCParameters: $nt"
-    if (Set ∘ keys)(nt) == Set([:beta, :slices])
+    @assert length(nt) >= 2 "Invalid keyword arguments to DQMCParameters: $nt"
+    if (Set ∘ keys)(nt) == Set([:delta_tau, :beta, :slices])
+        delta_tau, beta = nt.delta_tau, nt.beta
+        slices = round(Int, beta/delta_tau)
+        if slices != nt.slices
+            error("Given slices ($(nt.slices)) does not match calculated slices beta/delta_tau ≈ $(slices)")
+        end
+    elseif (Set ∘ keys)(nt) == Set([:beta, :slices])
         beta, slices = nt.beta, nt.slices
         delta_tau = beta / slices
     elseif (Set ∘ keys)(nt) == Set([:delta_tau, :slices])
@@ -249,7 +255,7 @@ The time required to generate a save file should be included here.
 
 See also: [`resume!`](@ref)
 """
-function run!(
+@bm function run!(
         mc::DQMC;
         verbose::Bool = true,
         sweeps::Int = mc.p.sweeps,

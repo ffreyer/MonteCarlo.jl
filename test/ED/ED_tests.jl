@@ -182,6 +182,7 @@ end
 
 
 @testset "Zhong Chao Model (ED)" begin
+    TimerOutputs.enable_debug_timings(MonteCarlo)
     model = MonteCarlo.ZCModel(
         L = 2,
         U = 1.0,
@@ -291,6 +292,8 @@ end
             @test ED_PC ≈ PC[site1, site2] atol=atol rtol=rtol
         end
     end
+    TimerOutputs.disable_debug_timings(MonteCarlo)
+    MonteCarlo.TimerOutputs.print_timer()
 end
 #
 # @testset "Zhong Chao Model transformed (ED)" begin

@@ -46,7 +46,7 @@ hoppingeltype(::Type{DQMC}, m::ZCModel) = ComplexF64
 @inline Base.rand(::Type{DQMC}, m::ZCModel, nslices::Int) = rand(ZCDistribution, nsites(m), nslices)
 
 
-function hopping_matrix(mc::DQMC, m::ZCModel)
+@bm function hopping_matrix(mc::DQMC, m::ZCModel)
     # 2N for spin flip
     N = length(m.l)
     l = m.l
@@ -136,7 +136,7 @@ and store it in `result::Matrix`.
 
 This is a performance critical method.
 """
-@inline function interaction_matrix_exp!(mc::DQMC, m::ZCModel,
+@inline @bm function interaction_matrix_exp!(mc::DQMC, m::ZCModel,
             result::Matrix, conf::ZCConf, slice::Int, power::Float64=1.)
 
     # TODO maybe optimize this? ~25ns
@@ -156,7 +156,7 @@ This is a performance critical method.
 end
 
 
-@inline @fastmath @inbounds function propose_local(
+@inline @fastmath @inbounds @bm function propose_local(
         mc::DQMC, m::ZCModel, i::Int, slice::Int, conf::ZCConf
     )
 
@@ -179,7 +179,7 @@ end
     return detratio, 0.0, (R, Δ)
 end
 
-@inline @inbounds @fastmath function accept_local!(
+@inline @inbounds @fastmath @bm function accept_local!(
         mc::DQMC, m::ZCModel, i::Int, slice::Int, conf::ZCConf,
         delta, detratio, _::Float64
     )
@@ -217,7 +217,7 @@ end
 
 
 
-@inline function energy_boson(mc::DQMC, m::ZCModel, hsfield::ZCConf)
+@inline @bm function energy_boson(mc::DQMC, m::ZCModel, hsfield::ZCConf)
     dtau = mc.p.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
     return lambda * sum(hsfield)

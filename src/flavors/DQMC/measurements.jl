@@ -170,7 +170,7 @@ function GreensMeasurement(mc::DQMC, model)
     )
     GreensMeasurement{typeof(o)}(o)
 end
-function measure!(m::GreensMeasurement, mc::DQMC, model, i::Int64)
+@bm function measure!(m::GreensMeasurement, mc::DQMC, model, i::Int64)
     push!(m.obs, greens(mc))
 end
 function save_measurement(file::JLD.JldFile, m::GreensMeasurement, entryname::String)
@@ -200,7 +200,7 @@ function BosonEnergyMeasurement(mc::DQMC, model)
     o = LightObservable(Float64, name="Bosonic Energy", alloc=1_000_000)
     BosonEnergyMeasurement{typeof(o)}(o)
 end
-function measure!(m::BosonEnergyMeasurement, mc::DQMC, model, i::Int64)
+@bm function measure!(m::BosonEnergyMeasurement, mc::DQMC, model, i::Int64)
     push!(m.obs, energy_boson(mc, model, conf(mc)))
 end
 function save_measurement(file::JLD.JldFile, m::BosonEnergyMeasurement, entryname::String)
@@ -254,7 +254,7 @@ function ChargeDensityCorrelationMeasurement(mc::DQMC, model)
     )
     ChargeDensityCorrelationMeasurement(obs, [zero(T) for _ in 1:N, __ in 1:N])
 end
-function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
+@bm function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
     N = nsites(model)
     G = greens(mc, model)
     IG = I - G
@@ -336,7 +336,7 @@ function MagnetizationMeasurement(mc::DQMC, model)
 
     MagnetizationMeasurement(m1x, m1y, m1z)
 end
-function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
+@bm function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
     N = nsites(model)
     G = greens(mc, model)
     IG = I - G
@@ -416,7 +416,7 @@ function SpinDensityCorrelationMeasurement(mc::DQMC, model)
 
     SpinDensityCorrelationMeasurement(m2x, m2y, m2z)
 end
-function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
+@bm function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
     N = nsites(model)
     G = greens(mc, model)
     IG = I - G
@@ -513,7 +513,7 @@ function PairingCorrelationMeasurement(mc::DQMC, model)
 
     PairingCorrelationMeasurement(obs1, obs2, temp)
 end
-function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
+@bm function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
     G = greens(mc, model)
     N = nsites(model)
     m.temp .= G[1:N, 1:N] .* G[N+1:2N, N+1:2N] - G[1:N, N+1:2N] .* G[N+1:2N, 1:N]

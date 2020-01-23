@@ -82,7 +82,7 @@ Hubbard model in the DQMC simulation.
 This isn't a performance critical method as it is only used once before the
 actual simulation.
 """
-function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{L}) where {L<:AbstractLattice}
+@bm function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{L}) where {L<:AbstractLattice}
     N = nsites(m)
     neighs = m.neighs # row = up, right, down, left; col = siteidx
 
@@ -108,7 +108,7 @@ and store it in `result::Matrix`.
 
 This is a performance critical method.
 """
-@inline function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive,
+@inline @bm function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive,
             result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.)
     dtau = mc.p.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
@@ -117,7 +117,7 @@ This is a performance critical method.
 end
 
 
-@inline function propose_local(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf)
+@inline @bm function propose_local(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf)
     # see for example dos Santos (2002)
     greens = mc.s.greens
     dtau = mc.p.delta_tau
@@ -130,7 +130,7 @@ end
     return detratio * exp(-ΔE_boson), ΔE_boson, γ
 end
 
-@inline function accept_local!(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, delta, detratio, ΔE_boson::Float64)
+@inline @bm function accept_local!(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, delta, detratio, ΔE_boson::Float64)
     greens = mc.s.greens
     γ = delta
 
@@ -163,7 +163,7 @@ end
 
 
 
-function greens(mc::DQMC, model::HubbardModelAttractive)
+@bm function greens(mc::DQMC, model::HubbardModelAttractive)
     G = greens(mc)
     vcat(hcat(G, zeros(size(G))), hcat(zeros(size(G)), G))
 end
