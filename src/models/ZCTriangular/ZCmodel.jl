@@ -138,15 +138,20 @@ This is a performance critical method.
 """
 @inline function interaction_matrix_exp!(mc::DQMC, m::ZCModel,
             result::Matrix, conf::ZCConf, slice::Int, power::Float64=1.)
-    # TODO optimize
-    # compute this only once
+
+    # TODO maybe optimize this? ~25ns
     dtau = mc.p.delta_tau
     lambda = acosh(exp(0.5m.U * dtau))
 
-    result .= Diagonal(vcat(
-        exp.(sign(power) * lambda * conf[:, slice]),
-        exp.(-sign(power) * lambda * conf[:, slice])
-    ))
+    result .= zero(eltype(result))
+    N = div(size(result, 1), 2)
+    @inbounds for i in 1:N
+        result[i, i] = exp(sign(power) * lambda * conf[i, slice])
+    end
+    @inbounds for i in N+1:2N
+        result[i, i] = exp(-sign(power) * lambda * conf[i-N, slice])
+    end
+
     nothing
 end
 
