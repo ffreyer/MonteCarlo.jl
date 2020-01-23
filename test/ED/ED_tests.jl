@@ -1,3 +1,4 @@
+using Random
 include("ED.jl")
 
 @testset "ED checks" begin
