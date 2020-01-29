@@ -31,10 +31,15 @@ ZCModel(params::NamedTuple) = ZCModel(; params...)
 # cosmetics
 import Base.summary
 import Base.show
-# Base.summary(model::ZCModel) = "$(model.dims)D attractive Hubbard model"
-# Base.show(io::IO, model::ZCModel) = print(io, "$(model.dims)D attractive Hubbard model, L=$(model.L) ($(length(model.l)) sites)")
-# Base.show(io::IO, m::MIME"text/plain", model::ZCModel) = print(io, model)
-
+Base.summary(m::ZCModel) = "$(m.L) × $(m.L) ZC Model"
+Base.show(io::IO, m::ZCModel) = print(io, "$(m.L) × $(m.L) ZC Model")
+function Base.show(io::IO, ::MIME"text/plain", m::ZCModel)
+    print(io, "ZCModel (Triangular Lattice, $(m.L) × $(m.L) Sites)\n")
+    print(io, "\tt  = $(m.t1) (Nearest Neighbor hopping) ($(m.t1x), $(m.t1y), $(m.t1z))\n")
+    print(io, "\tt′ = $(m.t2) (Third Nearest Neighbor hopping)\n")
+    print(io, "\tt⟂ = $(m.tperp) (Interlayer hopping)\n")
+    print(io, "\tμ  = $(m.mu) (chemical potential)")
+end
 
 
 
