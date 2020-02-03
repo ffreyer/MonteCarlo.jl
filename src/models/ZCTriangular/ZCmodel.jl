@@ -16,6 +16,14 @@ const ZCDistribution = Int8[-1,1]
     tperp::Float64 = 1.0
     delta::Float64 = 0.0
     mu::Float64 = 0.0
+
+    # temporary stuff to avoid allocations
+    Gslice::Matrix{ComplexF64} = Matrix{ComplexF64}(undef, 2, 2(L^2))
+    IG::Matrix{ComplexF64} = Matrix{ComplexF64}(undef, 2(L^2), 2)
+    IGR::Matrix{ComplexF64} = Matrix{ComplexF64}(undef, 2(L^2), 2)
+    # IG::Matrix{ComplexF64} = Matrix{ComplexF64}(undef, 2, 2(L^2))
+    # IGR::Matrix{ComplexF64} = Matrix{ComplexF64}(undef, 2, 2(L^2))
+    R::Matrix{ComplexF64} = Matrix{ComplexF64}(undef, 2, 2)
     #@assert mu == 0.0 "mu is only a compatability hack"
 
     # non-user fields
@@ -35,10 +43,12 @@ Base.summary(m::ZCModel) = "$(m.L) × $(m.L) ZC Model"
 Base.show(io::IO, m::ZCModel) = print(io, "$(m.L) × $(m.L) ZC Model")
 function Base.show(io::IO, ::MIME"text/plain", m::ZCModel)
     print(io, "ZCModel (Triangular Lattice, $(m.L) × $(m.L) Sites)\n")
-    print(io, "\tt  = $(m.t1) (Nearest Neighbor hopping) ($(m.t1x), $(m.t1y), $(m.t1z))\n")
-    print(io, "\tt′ = $(m.t2) (Third Nearest Neighbor hopping)\n")
-    print(io, "\tt⟂ = $(m.tperp) (Interlayer hopping)\n")
-    print(io, "\tμ  = $(m.mu) (chemical potential)")
+    println(io, "\tH = t σⁱ (c↑c↑ - c↓c↓)          | t  = $(m.t1) (Nearest Neighbor hopping) ($(m.t1x), $(m.t1y), $(m.t1z))")
+    println(io, "\t  + t' (c↑c↑ - c↓c↓)            | t' = $(m.t2) (Third Nearest Neighbor hopping)")
+    println(io, "\t  + t⟂ (c↑c↓ + c↓c↑)            | t⟂ = $(m.tperp) (Interlayer hopping)")
+    println(io, "\t  + μ (n↑ - n↓)                 | μ  = $(m.mu) (chemical potential)")
+    println(io, "\t  + Δ σᶻ (n↑ - n↓)              | Δ  = $(m.delta)")
+    print(io, "\t  - U (n↑ - 0.5)(n↓ - 0.5)      | U  = $(m.U) (repulsive Coulomb interaction)")
 end
 
 
@@ -189,33 +199,63 @@ end
         delta, detratio, _::Float64
     )
 
-    N = nsites(m)
-    G = mc.s.greens
-    R, Δ = delta
+    @timeit_debug "accept_local (pre)" begin
+        N = nsites(m)
+        G = mc.s.greens
+        R, Δ = delta
+    end
 
     # TODO optimize
     # BLAS?
 
     # inverting R in-place, using that R is 2x2
     # speed up: 470ns -> 2.6ns, see matrix_inverse.jl
-    inv_div = 1.0 / detratio
-    R[1, 2] = -R[1, 2] * inv_div
-    R[2, 1] = -R[2, 1] * inv_div
-    x = R[1, 1]
-    R[1, 1] = R[2, 2] * inv_div
-    R[2, 2] = x * inv_div
+    # blazingly fast
+    @timeit_debug "accept_local (inversion)" begin
+        inv_div = 1.0 / detratio
+        R[1, 2] = -R[1, 2] * inv_div
+        R[2, 1] = -R[2, 1] * inv_div
+        x = R[1, 1]
+        R[1, 1] = R[2, 2] * inv_div
+        R[2, 2] = x * inv_div
+    end
 
-    IG = -G[:, i:N:end]
-    IG[i, 1] += 1.0
-    IG[i+N, 2] += 1.0
+    # decently fast
+    @timeit_debug "accept_local (m.IG, m.R)" begin
+        @views mul!(m.IG, G[:, i:N:end], -1.0)
+        @views m.IG[i, 1] += 1.0
+        @views m.IG[i+N, 2] += 1.0
+        mul!(m.R, R, Δ)
+        mul!(m.IGR, m.IG, m.R)
+    end
 
-    R = R * Δ
-    IG = IG * R
-    # mc.s.greens_temp = IG * (R * Δ) * G[i:N:end, :]
-    mul!(mc.s.greens_temp, IG, G[i:N:end, :])
-    G .-= mc.s.greens_temp
+    # TODO SSSLLOOOWWW
+    @timeit_debug "accept_local (finalize computation)" begin
+        # mc.s.greens_temp = IG * (R * Δ) * G[i:N:end, :]
+        mul!(mc.s.greens_temp, m.IGR, G[i:N:end, :])
 
-    conf[i, slice] *= -1
+        G .-= mc.s.greens_temp
+        # mul!(G, mc.s.greens_temp, -1.0)
+
+        conf[i, slice] *= -1
+    end
+
+    # @timeit_debug "accept_local (finalize computation)" begin
+    #     # mc.s.greens_temp = IG * (R * Δ) * G[i:N:end, :]
+    #     mul!(mc.s.greens_temp, m.IG, G[i:N:end, :])
+    #     # @views copyto!(m.Gslice, G[i:N:end, :])
+    #
+    #     mc.s.tmp .= G .- mc.s.greens_temp
+    #     # @. G -=
+    #     # mul!(G, mc.s.greens_temp, -1.0)
+    #
+    #     conf[i, slice] *= -1
+    # end
+
+    # if !(mc.s.tmp ≈ G)
+    #     display(mc.s.tmp .- G)
+    #     error("REEEE")
+    # end
 
     nothing
 end
