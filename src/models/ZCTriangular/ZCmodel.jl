@@ -21,9 +21,9 @@ const ZCDistribution = Int8[-1,1]
     Gslice::Matrix{ComplexF64} = Matrix{ComplexF64}(undef, 2, 2(L^2))
     IG::Matrix{ComplexF64} = Matrix{ComplexF64}(undef, 2(L^2), 2)
     IGR::Matrix{ComplexF64} = Matrix{ComplexF64}(undef, 2(L^2), 2)
-    # IG::Matrix{ComplexF64} = Matrix{ComplexF64}(undef, 2, 2(L^2))
-    # IGR::Matrix{ComplexF64} = Matrix{ComplexF64}(undef, 2, 2(L^2))
     R::Matrix{ComplexF64} = Matrix{ComplexF64}(undef, 2, 2)
+    Δ::Matrix{ComplexF64} = zeros(Float64, 2, 2)
+    RΔ::Matrix{ComplexF64} = Matrix{ComplexF64}(undef, 2, 2)
     #@assert mu == 0.0 "mu is only a compatability hack"
 
     # non-user fields
@@ -178,31 +178,46 @@ end
     N = nsites(m)
     G = mc.s.greens
     Δτ = mc.p.delta_tau
-    # TODO optimize
+
+    # TODO maybe optimize
     # compute this only once
     α = acosh(exp(0.5Δτ * m.U))
 
-    # TODO optimize
-    # unroll matmult?
     ΔE_Boson = -2.0α * conf[i, slice]
-    Δ = [exp(ΔE_Boson) - 1 0.0; 0.0 exp(-ΔE_Boson) - 1]
-    R = I + Δ * (I - G[i:N:end, i:N:end])
+
+    m.Δ[1, 1] = exp(ΔE_Boson) - 1.0
+    m.Δ[2, 2] = exp(-ΔE_Boson) - 1.0
+
+    # TODO maybe optimize
+    # unroll matmult?
+    # @timeit_debug "propose_local - R" begin
+        m.RΔ[1, 1] = 1 - G[i, i]
+        m.RΔ[1, 2] = - G[i, i+N]
+        m.RΔ[2, 1] = - G[i+N, i]
+        m.RΔ[2, 2] = 1 - G[i+N, i+N]
+
+        mul!(m.R, m.Δ, m.RΔ)
+        m.R[1, 1] += 1.0
+        m.R[2, 2] += 1.0
+    # end
+
+    # Use as temporary storage
     # Calculate det of 2x2 Matrix
     # det() vs unrolled: 206ns -> 2.28ns
-    detratio = R[1, 1] * R[2, 2] - R[1, 2] * R[2, 1]
+    detratio = m.R[1, 1] * m.R[2, 2] - m.R[1, 2] * m.R[2, 1]
 
-    return detratio, 0.0, (R, Δ)
+    return detratio, 0.0, nothing
 end
 
 @inline @inbounds @fastmath @bm function accept_local!(
         mc::DQMC, m::ZCModel, i::Int, slice::Int, conf::ZCConf,
-        delta, detratio, _::Float64
+        _, detratio, __::Float64
     )
 
     @timeit_debug "accept_local (pre)" begin
         N = nsites(m)
         G = mc.s.greens
-        R, Δ = delta
+        # R, Δ = delta
     end
 
     # TODO optimize
@@ -213,20 +228,20 @@ end
     # blazingly fast
     @timeit_debug "accept_local (inversion)" begin
         inv_div = 1.0 / detratio
-        R[1, 2] = -R[1, 2] * inv_div
-        R[2, 1] = -R[2, 1] * inv_div
-        x = R[1, 1]
-        R[1, 1] = R[2, 2] * inv_div
-        R[2, 2] = x * inv_div
+        m.R[1, 2] = -m.R[1, 2] * inv_div
+        m.R[2, 1] = -m.R[2, 1] * inv_div
+        x = m.R[1, 1]
+        m.R[1, 1] = m.R[2, 2] * inv_div
+        m.R[2, 2] = x * inv_div
     end
 
     # decently fast
     @timeit_debug "accept_local (m.IG, m.R)" begin
         @views mul!(m.IG, G[:, i:N:end], -1.0)
-        @views m.IG[i, 1] += 1.0
-        @views m.IG[i+N, 2] += 1.0
-        mul!(m.R, R, Δ)
-        mul!(m.IGR, m.IG, m.R)
+        m.IG[i, 1] += 1.0
+        m.IG[i+N, 2] += 1.0
+        mul!(m.RΔ, m.R, m.Δ)
+        mul!(m.IGR, m.IG, m.RΔ)
     end
 
     # TODO SSSLLOOOWWW
