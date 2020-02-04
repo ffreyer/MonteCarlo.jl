@@ -237,7 +237,7 @@ end
     run!(mc::DQMC[; kwargs...])
 
 Runs the given Monte Carlo simulation `mc`. Returns true if the run finished and
-false if it cancelled early to generate a save-file.
+false if it cancelled early to generate a resumable save-file.
 
 ### Keyword Arguments:
 - `verbose = true`: If true, print progress messaged to stdout.
@@ -249,7 +249,10 @@ default.
 save file and exit
 - `grace_period = Minute(5)`: Buffer between the current time and `safe_before`.
 The time required to generate a save file should be included here.
-- `filename`: Name of the save file. The default is based on `safe_before`.
+- `resumable_filename`: Name of the resumable save file. The default is based on
+`safe_before`.
+- `force_overwrite = false`: If set to true a file with the same name as
+`resumable_filename` will be overwritten. (This will create a temporary backup)
 - `start=1`: The first sweep in the simulation. This will be changed when using
 `resume!(save_file)`.
 
@@ -262,7 +265,7 @@ See also: [`resume!`](@ref)
         thermalization = mc.p.thermalization,
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
-        filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
+        resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
         force_overwrite = false,
         start = 1
     )
@@ -357,11 +360,27 @@ See also: [`resume!`](@ref)
             println("Early save initiated for sweep #$i.\n")
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
-            filename = save(filename, mc, force_overwrite = force_overwrite)
-            save_rng(filename)
-            jldopen(filename, "r+") do f
+
+            if force_overwrite
+                parts = splitpath(resumable_filename)
+                parts[end] = "." * parts[end]
+                temp_filename = _generate_unqiue_JLD_filename(joinpath(parts...))
+                mv(resumable_filename, temp_filename)
+            end
+
+            # We create a backup manually here because we save extra stuff
+            # In either case there should be no conflicting file, so there
+            # should be nothing to overwrite.
+            resumable_filename = save(resumable_filename, mc)
+            save_rng(resumable_filename)
+            jldopen(resumable_filename, "r+") do f
                 write(f, "last_sweep", i)
             end
+
+            if force_overwrite
+                rm(temp_filename)
+            end
+
             verbose && println("\nEarly save finished")
 
             return false
@@ -463,8 +482,8 @@ measurements beforehand.
 
 ### Keyword Arguments (both):
 - `verbose = true`: If true, print progress messaged to stdout.
-- `safe_before::Date`: If this date is passed, `run!` will generate a resumable
-save file and exit
+- `safe_before::Date`: If this date is passed, `replay!` will generate a
+resumable save file and exit
 - `grace_period = Minute(5)`: Buffer between the current time and `safe_before`.
 The time required to generate a save file should be included here.
 - `filename`: Name of the save file. The default is based on `safe_before`.
@@ -518,7 +537,6 @@ function replay!(
 
     verbose && println("Preparing Green's function stack")
     resume_init!(mc)
-    mc.conf = first(configs)
     initialize_stack(mc) # redundant ?!
     build_stack(mc)
     propagate(mc)
@@ -526,7 +544,8 @@ function replay!(
     _time = time()
     verbose && println("\n\nReplaying measurement stage - ", length(configs))
     prepare!(mc.measurements, mc, mc.model)
-    for i in 1:mc.p.measure_rate:length(configs)
+    for i in start:mc.p.measure_rate:length(configs)
+        mc.conf = configs[i]
         mc.s.greens, mc.s.log_det = calculate_greens_and_logdet(mc, nslices(mc))
         measure!(mc.measurements, mc, mc.model, i)
 
@@ -635,7 +654,7 @@ function load_mc(data::Dict, ::Type{T}) where T <: DQMC
     mc
 end
 
-#   save_parameters(file::JLD.JldFile, p::DQMCParameters, entrzname="Parameters")
+#   save_parameters(file::JLD.JldFile, p::DQMCParameters, entryname="Parameters")
 #
 # Saves (minimal) information necessary to reconstruct a given
 # `p::DQMCParameters` to a JLD-file `filename` under group `entryname`.
@@ -645,11 +664,11 @@ function save_parameters(file::JLD.JldFile, p::DQMCParameters, entryname::String
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(p))
 
-    write(file, entryname * "/global_moves", p.global_moves)
+    write(file, entryname * "/global_moves", Int(p.global_moves))
     write(file, entryname * "/global_rate", p.global_rate)
     write(file, entryname * "/thermalization", p.thermalization)
     write(file, entryname * "/sweeps", p.sweeps)
-    write(file, entryname * "/all_checks", p.all_checks)
+    write(file, entryname * "/all_checks", Int(p.all_checks))
     write(file, entryname * "/safe_mult", p.safe_mult)
     write(file, entryname * "/delta_tau", p.delta_tau)
     write(file, entryname * "/beta", p.beta)
@@ -667,16 +686,16 @@ function load_parameters(data::Dict, ::Type{T}) where T <: DQMCParameters
     @assert data["VERSION"] == 1
 
     data["type"](
-        global_moves = data["global_moves"],
-        global_rate = data["global_rate"],
-        thermalization = data["thermalization"],
-        sweeps = data["sweeps"],
-        all_checks = data["all_checks"],
-        safe_mult = data["safe_mult"],
-        delta_tau = data["delta_tau"],
-        beta = data["beta"],
-        slices = data["slices"],
-        measure_rate = data["measure_rate"],
+        Bool(data["global_moves"]),
+        data["global_rate"],
+        data["thermalization"],
+        data["sweeps"],
+        Bool(data["all_checks"]),
+        data["safe_mult"],
+        data["delta_tau"],
+        data["beta"],
+        data["slices"],
+        data["measure_rate"],
     )
 end
 
