@@ -8,6 +8,8 @@ const TestDistribution = Int8[-1,1]
     # mu::Float64 = 0.0
     U::Float64 = 1.0
     @assert U >= 0. "U must be positive."
+    t0::Float64 = 1.0
+    tp::Float64 = 1.0
 
     # non-user fields
     l::TriangularLattice = TriangularLattice(L) # hopping matrix is random, so lattice irrelevant
@@ -44,7 +46,7 @@ function hopping_matrix(mc::DQMC, m::TestModel)
 
     # Generate T_0
     S = 2.0rand(ComplexF64, N, N) .- (1+1im)
-    T_0 = S + S'
+    T_0 = m.t0 * (S + S')
     T[1:N, 1:N] .= T_0
     T[N+1:end, N+1:end] .= -T_0
     @info "Is T_0 symmetric?          $(issymmetric(T_0))"
@@ -62,7 +64,7 @@ function hopping_matrix(mc::DQMC, m::TestModel)
 
     # Generate T_perp
     S = 2rand(N, N) .- 1.0
-    T_perp = S + S' #+ N * I)
+    T_perp = m.tp * (S + S') #+ N * I)
     T[1:N, N+1:end] .= T_perp
     T[N+1:end, 1:N] .= T_perp
     @info "Is T⟂ symmetric?          $(issymmetric(T_perp))"
