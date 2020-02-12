@@ -589,31 +589,36 @@ end
 """
     greens(mc::DQMC)
 
-Obtain the current equal-time Green's function.
+Obtain the current equal-time Green's function, i.e. the fermionic expectation
+value of `Gᵢⱼ = ⟨cᵢcⱼ^†⟩`. The indices relate to sites and flavors, but the
+exact meanign depends on the model. For the attractive Hubbard model
+`G[i, j] = ⟨c_{i, ↑} c_{j, ↑}^†⟩ = ⟨c_{i, ↓} c_{j, ↓}^†⟩` due to symmetry.
 
-Internally, `mc.s.greens` is an effective Green's function. This method transforms
-this effective one to the actual Green's function by multiplying hopping matrix
+Internally, `mc.s.greens` is an effective Green's function. This method
+transforms it to the actual Green's function by multiplying hopping matrix
 exponentials from left and right.
 """
 greens(mc::DQMC) = _greens(mc, mc.s.greens)
-_greens(mc::DQMC, G::Matrix) = _greens!(mc, copy(G))
-function _greens!(mc::DQMC_CBFalse, greens::Matrix)
+_greens(mc::DQMC, G::Matrix) = _greens!(mc, copy(G), mc.s.greens_temp)
+function _greens!(mc::DQMC_CBFalse, greens::Matrix, temp::Matrix)
     eThalfminus = mc.s.hopping_matrix_exp
     eThalfplus = mc.s.hopping_matrix_exp_inv
-    greens .= greens * eThalfminus
-    greens .= eThalfplus * greens
+    mul!(temp, greens, eThalfminus)
+    mul!(greens, eThalfplus, temp)
     return greens
 end
-function _greens!(mc::DQMC_CBTrue, greens::Matrix)
+function _greens!(mc::DQMC_CBTrue, greens::Matrix, temp::Matrix)
     chkr_hop_half_minus = mc.s.chkr_hop_half
     chkr_hop_half_plus = mc.s.chkr_hop_half_inv
 
     @inbounds @views begin
         for i in reverse(1:mc.s.n_groups)
-          greens .= greens * chkr_hop_half_minus[i]
+            mul!(temp, greens, chkr_hop_half_minus[i])
+            copyto!(greens, temp)
         end
         for i in reverse(1:mc.s.n_groups)
-          greens .= chkr_hop_half_plus[i] * greens
+            mul!(temp, chkr_hop_half_plus[i], greens)
+            copyto!(greens, temp)
         end
     end
     return greens
