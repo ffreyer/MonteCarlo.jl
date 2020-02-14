@@ -10,50 +10,44 @@ struct SuperconductivityMeasurement{
     py_wave::OT
     px_wave::OT
 
-    temp1::Matrix{T}
-    temp2::Matrix{T}
-    temp3::Matrix{T}
-    temp4::Matrix{T}
-    temp5::Matrix{T}
-    temp6::Matrix{T}
+    temp::Matrix{T}
 end
-function SuperconductivityMeasurement(mc::DQMC, model)
+function SuperconductivityMeasurement(mc::DQMC, model, shape=get_lattice_shape(model))
     T = eltype(mc.s.greens)
     N = nsites(model)
 
     s_wave      = LightObservable(
-        LogBinner(zeros(T, N, N), capacity=1_000_000),
+        LogBinner(reshape(zeros(T, N), shape), capacity=1_000_000),
         "s-wave equal time pairing correlation", "Observables.jld", "etpc-s"
     )
     ext_s_wave      = LightObservable(
-        LogBinner(zeros(T, N, N), capacity=1_000_000),
+        LogBinner(reshape(zeros(T, N), shape), capacity=1_000_000),
         "extended s-wave equal time pairing correlation", "Observables.jld", "etpc-se"
     )
     dxy_wave    = LightObservable(
-        LogBinner(zeros(T, N, N), capacity=1_000_000),
+        LogBinner(reshape(zeros(T, N), shape), capacity=1_000_000),
         "d_xy-wave equal time pairing correlation", "Observables.jld", "etpc-dxy"
     )
     dx2_y2_wave = LightObservable(
-        LogBinner(zeros(T, N, N), capacity=1_000_000),
+        LogBinner(reshape(zeros(T, N), shape), capacity=1_000_000),
         "d_{x²-y²}-wave equal time pairing correlation", "Observables.jld", "etpc-dx2y2"
     )
     f_wave      = LightObservable(
-        LogBinner(zeros(T, N, N), capacity=1_000_000),
+        LogBinner(reshape(zeros(T, N), shape), capacity=1_000_000),
         "f-wave equal time pairing correlation", "Observables.jld", "etpc-f"
     )
     py_wave     = LightObservable(
-        LogBinner(zeros(T, N, N), capacity=1_000_000),
+        LogBinner(reshape(zeros(T, N), shape), capacity=1_000_000),
         "p_y-wave equal time pairing correlation", "Observables.jld", "etpc-py"
     )
     px_wave     = LightObservable(
-        LogBinner(zeros(T, N, N), capacity=1_000_000),
+        LogBinner(reshape(zeros(T, N), shape), capacity=1_000_000),
         "p_x-wave equal time pairing correlation", "Observables.jld", "etpc-px"
     )
 
     SuperconductivityMeasurement(
         s_wave, ext_s_wave, dxy_wave, dx2_y2_wave, f_wave, py_wave, px_wave,
-        zeros(T, N, N), zeros(T, N, N), zeros(T, N, N),
-        zeros(T, N, N), zeros(T, N, N), zeros(T, N, N)
+        reshape(zeros(T, N), shape)
     )
 end
 function measure!(m::SuperconductivityMeasurement, mc::DQMC, model, i::Int64)
@@ -67,6 +61,15 @@ function measure!(m::SuperconductivityMeasurement, mc::DQMC, model, i::Int64)
     IG = I - G
     N = nsites(model)
 
+    m.temp .= zero(eltype(m.temp))
+    for i in 1:N
+        for delta in 0:N-1
+            j = mod1(i + delta, N)
+            m.temp[delta+1] += G[i, j] * G[i+N, j+N] - G[i, j+N] * G[i+N, j]
+        end
+    end
+    push!(m.s_wave, m.temp)
+
     # see 10.1103/PhysRevB.72.134513
     # f[i, :] are the prefactors for [s, dxy, dx2-y2, f, py, px][i]
     f = [
@@ -77,31 +80,49 @@ function measure!(m::SuperconductivityMeasurement, mc::DQMC, model, i::Int64)
          0  1  1  0 -1 -1;
         -2 -1  1  2  1 -1
     ]
-
-    for i in 1:N, j in 1:N
-        temp = zeros(eltype(G), 6)
-        for (k, ip) in enumerate(model.l.neighs[:, i])
-            for (l, jp) in enumerate(model.l.neighs[:, j])
-                # x = prefactor(i, dir) * prefactor(j, dir) *
-                temp .+= f[:, k] .* f[:, l] * (
-                    G[i, j] * G[ip+N, jp+N] - G[i, jp+N] * G[ip+N, j]
-                )
+    obs = [m.ext_s_wave, m.dxy_wave, m.dx2_y2_wave, m.f_wave, m.py_wave, m.px_wave]
+    for sym in 1:6
+        m.temp .= zero(eltype(m.temp))
+        for i in 1:N
+            for delta in 0:N-1
+                j = mod1(i + delta, N)
+                for (k, ip) in enumerate(model.l.neighs[:, i])
+                    for (l, jp) in enumerate(model.l.neighs[:, j])
+                        # x = prefactor(i, dir) * prefactor(j, dir) *
+                        m.temp[delta+1] += f[sym, k] .* f[sym, l] * (
+                            G[i, j] * G[ip+N, jp+N] - G[i, jp+N] * G[ip+N, j]
+                        )
+                    end
+                end
             end
         end
-        m.temp1[i, j] = temp[1]
-        m.temp2[i, j] = temp[2]
-        m.temp3[i, j] = temp[3]
-        m.temp4[i, j] = temp[4]
-        m.temp5[i, j] = temp[5]
-        m.temp6[i, j] = temp[6]
+        push!(obs[sym], m.temp)
     end
-    push!(m.s_wave, G[1:N, 1:N] .* G[N+1:2N, N+1:2N] - G[1:N, N+1:2N] .* G[N+1:2N, 1:N])
-    push!(m.ext_s_wave, m.temp1)
-    push!(m.dxy_wave, m.temp2)
-    push!(m.dx2_y2_wave, m.temp3)
-    push!(m.f_wave, m.temp4)
-    push!(m.py_wave, m.temp5)
-    push!(m.px_wave, m.temp6)
+
+    # for i in 1:N, j in 1:N
+    #     temp = zeros(eltype(G), 6)
+    #     for (k, ip) in enumerate(model.l.neighs[:, i])
+    #         for (l, jp) in enumerate(model.l.neighs[:, j])
+    #             # x = prefactor(i, dir) * prefactor(j, dir) *
+    #             temp .+= f[:, k] .* f[:, l] * (
+    #                 G[i, j] * G[ip+N, jp+N] - G[i, jp+N] * G[ip+N, j]
+    #             )
+    #         end
+    #     end
+    #     m.temp1[i, j] = temp[1]
+    #     m.temp2[i, j] = temp[2]
+    #     m.temp3[i, j] = temp[3]
+    #     m.temp4[i, j] = temp[4]
+    #     m.temp5[i, j] = temp[5]
+    #     m.temp6[i, j] = temp[6]
+    # end
+    # push!(m.s_wave, G[1:N, 1:N] .* G[N+1:2N, N+1:2N] - G[1:N, N+1:2N] .* G[N+1:2N, 1:N])
+    # push!(m.ext_s_wave, m.temp1)
+    # push!(m.dxy_wave, m.temp2)
+    # push!(m.dx2_y2_wave, m.temp3)
+    # push!(m.f_wave, m.temp4)
+    # push!(m.py_wave, m.temp5)
+    # push!(m.px_wave, m.temp6)
 end
 
 
