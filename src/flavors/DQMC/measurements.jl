@@ -183,7 +183,7 @@ end
         end
     end
 
-    push!(m.obs, m.temp)
+    push!(m.obs, m.temp / N)
 end
 function save_measurement(
         file::JLD.JldFile,
@@ -227,11 +227,13 @@ struct MagnetizationMeasurement{
         OTx <: AbstractObservable,
         OTy <: AbstractObservable,
         OTz <: AbstractObservable,
+        AT <: AbstractArray
     } <: SpinOneHalfMeasurement
 
     x::OTx
     y::OTy
     z::OTz
+    temp::AT
 end
 function MagnetizationMeasurement(mc::DQMC, model)
     N = nsites(model)
@@ -252,7 +254,7 @@ function MagnetizationMeasurement(mc::DQMC, model)
         "Magnetization z", "Observables.jld", "Mz"
     )
 
-    MagnetizationMeasurement(m1x, m1y, m1z)
+    MagnetizationMeasurement(m1x, m1y, m1z, [zero(T) for _ in 1:N])
 end
 @bm function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
     N = nsites(model)
@@ -266,14 +268,18 @@ end
 
     # Magnetization
     # c_{i, up}^† c_{i, down} + c_{i, down}^† c_{i, up}
-    mx = [- G[i+N, i] - G[i, i+N]           for i in 1:N]
+    # mx = [- G[i+N, i] - G[i, i+N]           for i in 1:N]
+    map!(i -> -G[i+N, i] - G[i, i+N], m.temp, 1:N)
+    push!(m.x, m.temp)
+
     # -i [c_{i, up}^† c_{i, down} - c_{i, down}^† c_{i, up}]
-    my = [-1im * (G[i, i+N] - G[i+N, i])    for i in 1:N]
+    # my = [-1im * (G[i, i+N] - G[i+N, i])    for i in 1:N]
+    map!(i -> -1im *(G[i+N, i] - G[i, i+N]), m.temp, 1:N)
+    push!(m.y, m.temp)
     # c_{i, up}^† c_{i, up} - c_{i, down}^† c_{i, down}
-    mz = [G[i+N, i+N] - G[i, i]             for i in 1:N]
-    push!(m.x, mx)
-    push!(m.y, my)
-    push!(m.z, mz)
+    # mz = [G[i+N, i+N] - G[i, i]             for i in 1:N]
+    map!(i -> G[i+N, i+N] - G[i, i], m.temp, 1:N)
+    push!(m.z, m.temp)
 end
 function save_measurement(
         file::JLD.JldFile,
@@ -371,7 +377,7 @@ end
             )
         end
     end
-    push!(m.x, m.temp)
+    push!(m.x, m.temp / N)
 
     m.temp .= zero(eltype(m.temp))
     for i in 1:N
@@ -385,7 +391,7 @@ end
             )
         end
     end
-    push!(m.y, m.temp)
+    push!(m.y, m.temp / N)
 
     m.temp .= zero(eltype(m.temp))
     for i in 1:N
@@ -399,7 +405,7 @@ end
             )
         end
     end
-    push!(m.z, m.temp)
+    push!(m.z, m.temp / N)
 end
 function save_measurement(
         file::JLD.JldFile,
@@ -469,7 +475,7 @@ end
         end
     end
 
-    push!(m.obs, m.temp)
+    push!(m.obs, m.temp / N)
 end
 
 """
