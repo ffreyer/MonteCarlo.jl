@@ -68,7 +68,7 @@ function measure!(m::SuperconductivityMeasurement, mc::DQMC, model, i::Int64)
             m.temp[delta+1] += G[i, j] * G[i+N, j+N] - G[i, j+N] * G[i+N, j]
         end
     end
-    push!(m.s_wave, m.temp)
+    push!(m.s_wave, m.temp / N)
 
     # see 10.1103/PhysRevB.72.134513
     # f[i, :] are the prefactors for [s, dxy, dx2-y2, f, py, px][i]
@@ -96,7 +96,7 @@ function measure!(m::SuperconductivityMeasurement, mc::DQMC, model, i::Int64)
                 end
             end
         end
-        push!(obs[sym], m.temp)
+        push!(obs[sym], m.temp / N)
     end
 
     # for i in 1:N, j in 1:N
