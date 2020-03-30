@@ -91,6 +91,13 @@ function load_measurement(data, ::DataType)
     data["data"]
 end
 
+# Or Base.empty! ?
+function reset!(m::AbstractMeasurement)
+    for n in obs_fieldnames_from_obj(m)
+        reset!(getfield(m, n))
+    end
+    m
+end
 
 
 # Statistics forwarded from MonteCarloObservable/BinningAnalysis

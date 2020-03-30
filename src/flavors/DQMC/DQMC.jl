@@ -493,25 +493,32 @@ The time required to generate a save file should be included here.
 """
 function replay!(
         mc::DQMC;
-        configs::ConfigurationMeasurement = let
-            for (k, v) in mc.measurements
-                v isa ConfigurationMeasurement && return v
-            end
-            throw(ArgumentError(
-                "Could not find a `ConfigurationMeasurement` in the given " *
-                "mc::DQMC. Try supplying it manually."
-            ))
+        configs::ConfigurationMeasurement = try
+            k = findfirst(v -> v isa ConfigurationMeasurement, mc.measurements)
+            mc.measurements[k]
+        catch e
+            @error(
+                "Failed to find a ConfigurationMeasurement in the given " *
+                "DQMC Simulation. Try supplying it manually."
+            )
+            rethrow(e)
         end,
-        reset_measurements = true,
+        # reset_measurements = true,
         measure_rate = 1,
         kwargs...
     )
     delete!(mc, ConfigurationMeasurement)
-    reset_measurements && for (k, v) in mc.measurements
-        mc.measurements[k] = typeof(v)(mc, mc.model)
-    end
-    mc.p.measure_rate = measure_rate
-    replay(mc, timeseries(configs.obs); kwargs...)
+    # reset_measurements && for (k, v) in mc.measurements
+    #     reset!(mc.measurements[k])
+    # end
+    mc.p = DQMCParameters(
+        mc.p.global_moves, mc.p.global_rate,
+        mc.p.thermalization, mc.p.sweeps,
+        mc.p.all_checks, mc.p.safe_mult,
+        mc.p.delta_tau, mc.p.beta, mc.p.slices,
+        measure_rate
+    )
+    replay!(mc, timeseries(configs.obs); kwargs...)
 end
 
 function replay!(
@@ -657,6 +664,7 @@ function load_mc(data::Dict, ::Type{T}) where T <: DQMC
     mc.thermalization_measurements = measurements[:TH]
     mc.measurements = measurements[:ME]
     mc.s = MonteCarlo.DQMCStack{geltype(mc), heltype(mc)}()
+    resume_init!(mc) # Minimal init
     mc
 end
 
