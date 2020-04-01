@@ -478,6 +478,30 @@ end
     push!(m.obs, m.temp / N)
 end
 
+function save_measurement(
+        file::JLD.JldFile,
+        m::PairingCorrelationMeasurement,
+        entryname::String
+    )
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(m))
+    write(file, entryname * "/obs", m.obs)
+    write(file, entryname * "/temp_type", typeof(m.temp))
+    write(file, entryname * "/temp_size", size(m.temp))
+    nothing
+end
+function load_measurement(
+        data, ::Type{T}
+    ) where T <: PairingCorrelationMeasurement
+
+    @assert data["VERSION"] == 1
+    data["type"](
+        data["obs"],
+        data["temp_type"](undef, data["temp_size"]...)
+    )
+end
+
+
 """
     uniform_fourier(M, dqmc)
     uniform_fourier(M, N)
@@ -1082,30 +1106,6 @@ function effective_greens2greens!(mc::DQMC_CBTrue, U::AbstractMatrix, T::Abstrac
         end
     end
     nothing
-end
-function save_measurement(
-        file::JLD.JldFile,
-        m::PairingCorrelationMeasurement,
-        entryname::String
-    )
-    write(file, entryname * "/VERSION", 1)
-    write(file, entryname * "/type", typeof(m))
-    write(file, entryname * "/mat_obs", m.mat)
-    write(file, entryname * "/num_obs", m.uniform_fourier)
-    write(file, entryname * "/temp_type", typeof(m.temp))
-    write(file, entryname * "/temp_size", size(m.temp))
-    nothing
-end
-function load_measurement(
-        data, ::Type{T}
-    ) where T <: PairingCorrelationMeasurement
-
-    @assert data["VERSION"] == 1
-    data["type"](
-        data["mat_obs"],
-        data["num_obs"],
-        data["temp_type"](undef, data["temp_size"]...)
-    )
 end
 
 
