@@ -507,8 +507,11 @@ function replay!(
         measure_rate = 1,
         kwargs...
     )
-    delete!(mc, ConfigurationMeasurement)
+    # DO NOT touch the configuration measurement - we're sampling from it
+    # (possibly multiple times, in resumed runs)
+    # delete!(mc, ConfigurationMeasurement)
     # reset_measurements && for (k, v) in mc.measurements
+    #     v isa ConfigurationMeasurement && continue
     #     reset!(mc.measurements[k])
     # end
     mc.p = DQMCParameters(
@@ -527,7 +530,7 @@ function replay!(
         verbose::Bool = true,
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
-        filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
+        resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
         force_overwrite = false,
         start = 1
     )
@@ -555,7 +558,10 @@ function replay!(
     for i in start:mc.p.measure_rate:length(configs)
         mc.conf = configs[i]
         mc.s.greens, mc.s.log_det = calculate_greens_and_logdet(mc, nslices(mc))
-        measure!(mc.measurements, mc, mc.model, i)
+        for (k, m) in mc.measurements
+            m isa ConfigurationMeasurement && continue
+            measure!(m, mc, mc.model, i)
+        end
 
         if mod(i, 10) == 0
             sweep_dur = (time() - _time)/10
@@ -574,11 +580,28 @@ function replay!(
             println("Early save initiated for sweep #$i.\n")
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
-            filename = save(filename, mc, force_overwrite = force_overwrite)
-            save_rng(filename)
-            jldopen(filename, "r+") do f
+
+            file_exists = isfile(resumable_filename)
+            if force_overwrite && file_exists
+                parts = splitpath(resumable_filename)
+                parts[end] = "." * parts[end]
+                temp_filename = _generate_unqiue_JLD_filename(joinpath(parts...))
+                mv(resumable_filename, temp_filename)
+            end
+
+            # We create a backup manually here because we save extra stuff
+            # In either case there should be no conflicting file, so there
+            # should be nothing to overwrite.
+            resumable_filename = save(resumable_filename, mc)
+            save_rng(resumable_filename)
+            jldopen(resumable_filename, "r+") do f
                 write(f, "last_sweep", i)
             end
+
+            if force_overwrite && file_exists
+                rm(temp_filename)
+            end
+
             verbose && println("\nEarly save finished")
 
             return false
