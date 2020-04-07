@@ -193,8 +193,6 @@ function save_measurement(
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(m))
     write(file, entryname * "/obs", m.obs)
-    write(file, entryname * "/temp_dim", size(m.temp))
-    write(file, entryname * "/temp_type", typeof(m.temp))
     nothing
 end
 function load_measurement(
@@ -202,7 +200,7 @@ function load_measurement(
     ) where T <: ChargeDensityCorrelationMeasurement
 
     @assert data["VERSION"] == 1
-    data["type"](data["obs"], data["temp_type"](undef, data["temp_size"]...))
+    data["type"](data["obs"], mean(data["obs"]))
 end
 
 
@@ -298,7 +296,7 @@ function load_measurement(
     ) where T <: MagnetizationMeasurement
 
     @assert data["VERSION"] == 1
-    data["type"](data["obs_x"], data["obs_y"], data["obs_z"])
+    data["type"](data["obs_x"], data["obs_y"], data["obs_z"], mean(data["obs_x"]))
 end
 
 
@@ -424,7 +422,7 @@ function load_measurement(
     ) where T <: SpinDensityCorrelationMeasurement
 
     @assert data["VERSION"] == 1
-    data["type"](data["obs_x"], data["obs_y"], data["obs_z"])
+    data["type"](data["obs_x"], data["obs_y"], data["obs_z"], mean(data["obs_z"]))
 end
 
 
@@ -486,8 +484,6 @@ function save_measurement(
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(m))
     write(file, entryname * "/obs", m.obs)
-    write(file, entryname * "/temp_type", typeof(m.temp))
-    write(file, entryname * "/temp_size", size(m.temp))
     nothing
 end
 function load_measurement(
@@ -495,10 +491,7 @@ function load_measurement(
     ) where T <: PairingCorrelationMeasurement
 
     @assert data["VERSION"] == 1
-    data["type"](
-        data["obs"],
-        data["temp_type"](undef, data["temp_size"]...)
-    )
+    data["type"](data["obs"], mean(data["obs"]))
 end
 
 
