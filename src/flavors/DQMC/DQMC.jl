@@ -490,6 +490,8 @@ The time required to generate a save file should be included here.
 - `filename`: Name of the save file. The default is based on `safe_before`.
 - `start=1`: The first sweep in the simulation. This will be changed when using
 `resume!(save_file)`.
+- `ignore`: A collection of measurement keys to ignore. Defaults to the key of
+the configuration measurement.
 """
 function replay!(
         mc::DQMC;
@@ -503,6 +505,7 @@ function replay!(
             )
             rethrow(e)
         end,
+        ignore = (findfirst(v -> v isa ConfigurationMeasurement, mc.measurements),),
         # reset_measurements = true,
         measure_rate = 1,
         kwargs...
@@ -521,12 +524,13 @@ function replay!(
         mc.p.delta_tau, mc.p.beta, mc.p.slices,
         measure_rate
     )
-    replay!(mc, timeseries(configs.obs); kwargs...)
+    replay!(mc, timeseries(configs.obs); ignore=ignore, kwargs...)
 end
 
 function replay!(
         mc::DQMC,
         configs::AbstractArray;
+        ignore = tuple(),
         verbose::Bool = true,
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
@@ -559,7 +563,7 @@ function replay!(
         mc.conf = configs[i]
         mc.s.greens, mc.s.log_det = calculate_greens_and_logdet(mc, nslices(mc))
         for (k, m) in mc.measurements
-            m isa ConfigurationMeasurement && continue
+            k in ignore && continue
             measure!(m, mc, mc.model, i)
         end
 
