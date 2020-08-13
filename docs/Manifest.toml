@@ -112,9 +112,9 @@ version = "0.21.0"
 
 [[Lazy]]
 deps = ["MacroTools"]
-git-tree-sha1 = "0bd934e15f5df97414aa81abf74ba8a2d5042964"
+git-tree-sha1 = "1370f8202dac30758f3c345f9909b97f53d87d3f"
 uuid = "50d2b5c4-7a5e-59d5-8109-a42b560f39c0"
-version = "0.15.0"
+version = "0.15.1"
 
 [[LibGit2]]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
@@ -137,9 +137,9 @@ uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
 [[LoopVectorization]]
 deps = ["DocStringExtensions", "LinearAlgebra", "OffsetArrays", "SIMDPirates", "SLEEFPirates", "UnPack", "VectorizationBase"]
-git-tree-sha1 = "25b1363081880dcd6a9e27736f4b1951ea4b8933"
+git-tree-sha1 = "df625d1ac07cb4b630ec1c024a42b8bc6ee9927f"
 uuid = "bdcacae8-1622-11e9-2a5c-532679323890"
-version = "0.8.20"
+version = "0.8.23"
 
 [[MacroTools]]
 deps = ["Markdown", "Random"]
@@ -155,7 +155,7 @@ uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[MonteCarlo]]
-deps = ["Dates", "InteractiveUtils", "JLD", "LightXML", "LinearAlgebra", "LoopVectorization", "MonteCarloObservable", "Parameters", "Printf", "Random", "Reexport", "Requires", "SparseArrays", "StableDQMC", "TimerOutputs"]
+deps = ["Dates", "InteractiveUtils", "JLD", "LightXML", "LinearAlgebra", "LoopVectorization", "MonteCarloObservable", "Parameters", "Printf", "Random", "RecursiveFactorization", "Reexport", "Requires", "SparseArrays", "StableDQMC", "TimerOutputs"]
 path = ".."
 uuid = "7ed9e010-db43-58a0-91f1-3971ebfac852"
 version = "0.0.0"
@@ -184,9 +184,9 @@ version = "0.12.1"
 
 [[Parsers]]
 deps = ["Dates", "Test"]
-git-tree-sha1 = "10134f2ee0b1978ae7752c41306e131a684e1f06"
+git-tree-sha1 = "8077624b3c450b15c087944363606a6ba12f925e"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "1.0.7"
+version = "1.0.10"
 
 [[Pkg]]
 deps = ["Dates", "LibGit2", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
@@ -215,6 +215,12 @@ git-tree-sha1 = "01af091d2e62b907f6bb65ea2e7c12208131cf17"
 uuid = "731186ca-8d62-57ce-b412-fbd966d074cd"
 version = "2.2.0"
 
+[[RecursiveFactorization]]
+deps = ["LinearAlgebra", "LoopVectorization", "VectorizationBase"]
+git-tree-sha1 = "4ca0bdad1d69abbd59c35af89a9a2ab6cd5ef0f1"
+uuid = "f2c3362d-daeb-58d1-803e-2bc74f2840b4"
+version = "0.1.4"
+
 [[Reexport]]
 deps = ["Pkg"]
 git-tree-sha1 = "7b1d07f411bc8ddb7977ec7f377b97b158514fe0"
@@ -232,9 +238,9 @@ uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 
 [[SIMDPirates]]
 deps = ["VectorizationBase"]
-git-tree-sha1 = "19880eef12759d7d049516fcb11f1ed8440963d6"
+git-tree-sha1 = "26ccdd1466f3071e27e81b43216ea238b62c0c42"
 uuid = "21efa798-c60a-11e8-04d3-e1a92915a26a"
-version = "0.8.21"
+version = "0.8.24"
 
 [[SLEEFPirates]]
 deps = ["Libdl", "SIMDPirates", "VectorizationBase"]
@@ -298,9 +304,9 @@ uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 
 [[VectorizationBase]]
 deps = ["CpuId", "Libdl", "LinearAlgebra"]
-git-tree-sha1 = "46afc4dc02f534e149149173f38f8f59cc23c165"
+git-tree-sha1 = "314bf15162034f846720ee1c3c3300dffd462253"
 uuid = "3d5dd08c-fd9d-11e8-17fa-ed2836048c2f"
-version = "0.12.29"
+version = "0.12.31"
 
 [[ZygoteRules]]
 deps = ["MacroTools"]
