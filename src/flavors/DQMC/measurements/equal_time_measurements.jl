@@ -290,14 +290,14 @@ struct MagnetizationMeasurement{
         OTy <: AbstractObservable,
         OTz <: AbstractObservable,
         AT <: AbstractArray,
-        ATy <: AbstractArray
+        # ATy <: AbstractArray
     } <: SpinOneHalfMeasurement
 
     x::OTx
     y::OTy
     z::OTz
     temp::AT
-    tempy::ATy
+    # tempy::ATy
 end
 
 function MagnetizationMeasurement(mc::DQMC, model; capacity=_default_capacity(mc))
@@ -349,7 +349,23 @@ function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
     map!(i -> G[i+N, i+N] - G[i, i], m.temp, 1:N)
     push!(m.z, m.temp)
 end
-
+function save_measurement(file::JLDFile, m::MagnetizationMeasurement, entryname::String)
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", MagnetizationMeasurement)
+    write(file, entryname * "/x", m.x)
+    write(file, entryname * "/y", m.y)
+    write(file, entryname * "/z", m.z)
+    nothing
+end
+# function _load(data, ::Type{T}) where T <: MagnetizationMeasurement
+#     @assert data["VERSION"] == 1
+#     x = data["x"]
+#     y = data["y"]
+#     z = data["z"]
+#     temp = similar(x.B.x_sum[1])
+#     tempy = similar(y.B.x_sum[1])
+#     data["type"](x, y, z, temp, tempy)
+# end
 
 
 """
@@ -538,3 +554,20 @@ function _pc_s_wave_kernel(IG, G, src1, src2, trg1, trg2)
     N = div(size(IG, 1), 2)
     G[src1, src2] * G[trg1+N, trg2+N] - G[src1, trg2+N] * G[trg1+N, src2]
 end
+# function save_measurement(file::JLDFile, m::PairingCorrelationMeasurement, entryname::String)
+#     write(file, entryname * "/VERSION", 1)
+#     write(file, entryname * "/type", PairingCorrelationMeasurement)
+#     B = m.obs.B
+
+#     write(file, entryname * "/obs", m.obs)
+#     nothing
+# end
+# function _load(data, ::Type{T}) where T <: PairingCorrelationMeasurement
+#     @assert data["VERSION"] == 1
+#     x = data["x"]
+#     y = data["y"]
+#     z = data["z"]
+#     temp = similar(x.B.x_sum[1])
+#     tempy = similar(y.B.x_sum[1])
+#     data["type"](x, y, z, temp, tempy)
+# end
